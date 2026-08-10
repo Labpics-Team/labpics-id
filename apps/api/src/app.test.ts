@@ -118,17 +118,24 @@ describe("api bootstrap", () => {
   });
 });
 
-// Testcontainers cannot drive dockerode over the Windows named pipe under Bun
-// (bun's node:http socketPath layer is unsupported there). These integration
-// tests therefore run on Linux/macOS (CI); on Windows the DB path is verified
-// via `docker compose up -d` + `bun --cwd packages/db run migrate`.
-const runContainerTests = process.platform !== "win32";
+// DB-backed readiness test. Priority: TEST_DATABASE_URL (CI/compose) →
+// Testcontainers (local Linux/macOS). On Windows, bun cannot drive dockerode
+// over the named pipe, so without TEST_DATABASE_URL the suite is skipped (the
+// Windows DB path is covered by `docker compose up -d` + migrate).
+const dbTestConnection = process.env.TEST_DATABASE_URL;
+const runDbTest = dbTestConnection !== undefined || process.platform !== "win32";
 
-describe.skipIf(!runContainerTests)("readiness against a real database", () => {
-  let postgres: PostgresTestContainer;
+describe.skipIf(!runDbTest)("readiness against a real database", () => {
+  let postgres: PostgresTestContainer | null = null;
+  let connectionString: string | undefined;
 
   beforeAll(async () => {
+    if (dbTestConnection !== undefined) {
+      connectionString = dbTestConnection;
+      return;
+    }
     postgres = await startPostgres();
+    connectionString = postgres.connectionString;
   });
 
   afterAll(async () => {
@@ -136,8 +143,11 @@ describe.skipIf(!runContainerTests)("readiness against a real database", () => {
   });
 
   it("GET /ready returns 200 when the pool can reach Postgres", async () => {
+    if (connectionString === undefined) {
+      throw new Error("no test database connection available");
+    }
     const deps = makeDeps();
-    const database = createDatabaseConnection(postgres.connectionString, logger);
+    const database = createDatabaseConnection(connectionString, logger);
     const app = createApp({ ...deps, database });
     try {
       const res = await app.request("/ready");

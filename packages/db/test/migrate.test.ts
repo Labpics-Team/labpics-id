@@ -10,16 +10,18 @@ const POSTGRES_17_IMAGE =
 
 const migrationsFolder = join(import.meta.dir, "..", "drizzle");
 
-// Testcontainers cannot drive dockerode over the Windows named pipe under Bun
-// (bun's node:http socketPath layer is unsupported there). These integration
-// tests therefore run on Linux/macOS (CI); on Windows the migration path is
-// verified via `docker compose up -d` + `bun --cwd packages/db run migrate`.
-const runContainerTests = process.platform !== "win32";
+// Migration test. Priority: TEST_DATABASE_URL (CI/compose) → Testcontainers
+// (local Linux/macOS). On Windows, bun cannot drive dockerode over the named
+// pipe, so without TEST_DATABASE_URL the suite is skipped (the Windows
+// migration path is covered by `docker compose up -d` + migrate).
+const dbTestConnection = process.env.TEST_DATABASE_URL;
+const runDbTest = dbTestConnection !== undefined || process.platform !== "win32";
 
-describe.skipIf(!runContainerTests)("@labpics/db migrations", () => {
-  let container: StartedPostgreSqlContainer;
+describe.skipIf(!runDbTest)("@labpics/db migrations", () => {
+  let container: StartedPostgreSqlContainer | null = null;
 
   beforeAll(async () => {
+    if (dbTestConnection !== undefined) return;
     container = await new PostgreSqlContainer(POSTGRES_17_IMAGE).start();
   });
 
@@ -28,7 +30,11 @@ describe.skipIf(!runContainerTests)("@labpics/db migrations", () => {
   });
 
   it("applies migrations and creates every bootstrap table", async () => {
-    const pool = createDbPool(container.getConnectionUri());
+    const connectionString = dbTestConnection ?? container?.getConnectionUri();
+    if (connectionString === undefined) {
+      throw new Error("no test database connection available");
+    }
+    const pool = createDbPool(connectionString);
     const db = createDb(pool);
     try {
       await migrate(db, { migrationsFolder });
