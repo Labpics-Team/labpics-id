@@ -1,0 +1,31 @@
+# ── dependencies ──────────────────────────────────────────────
+node_modules/
+
+# ── build outputs ──────────────────────────────────────────────
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# ── test coverage ──────────────────────────────────────────────
+coverage/
+
+# ── environment / secrets (never commit real values) ───────────
+.env
+.env.*
+!.env.example
+
+# ── binaries / platform artifacts ──────────────────────────────
+*.exe
+bun.lockb
+
+# ── logs ───────────────────────────────────────────────────────
+*.log
+
+# ── OS / editor ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

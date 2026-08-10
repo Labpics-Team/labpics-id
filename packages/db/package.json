@@ -1,0 +1,36 @@
+{
+  "name": "@labpics/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Labpics ID — Drizzle schema bootstrap (auth placeholders, audit chain, outbox, organization RBAC, product access) and migration infra.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "bun build ./src/index.ts --outdir ./dist --target=bun",
+    "test": "bun test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "12.1.0",
+    "@types/bun": "1.3.14",
+    "@types/pg": "8.21.0",
+    "drizzle-kit": "0.31.10",
+    "testcontainers": "12.1.0",
+    "typescript": "5.9.3"
+  }
+}

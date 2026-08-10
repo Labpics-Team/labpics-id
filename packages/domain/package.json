@@ -1,0 +1,25 @@
+{
+  "name": "@labpics/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Labpics ID — pure domain: aggregates, value objects, ports. Zero framework/DB/HTTP imports (enforced by scripts/check-domain-gate).",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "check:domain-gate": "bun ./scripts/check-domain-gate.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "bun build ./src/index.ts --outdir ./dist --target=bun",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  }
+}

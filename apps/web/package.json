@@ -1,0 +1,34 @@
+{
+  "name": "@labpics/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Labpics ID — Next.js 16 App Router web skeleton. Tailwind v4, Motion, Radix primitives, auth-aware proxy routing (no DB at edge), next/font, server-only data access.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@labpics/contracts": "0.1.0",
+    "@labpics/ui": "0.1.0",
+    "@radix-ui/react-slot": "1.3.3",
+    "geist": "1.7.2",
+    "motion": "13.1.0",
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1",
+    "tailwindcss": "4.3.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "postcss": "8.5.26",
+    "typescript": "5.9.3"
+  }
+}

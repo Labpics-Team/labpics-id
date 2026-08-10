@@ -1,0 +1,21 @@
+/*
+ * Labpics ID design tokens — PLACEHOLDER ONLY.
+ *
+ * The final token set is owned by the ch01-design-system task and its
+ * DESIGN.md brief (docs/design/DESIGN-BRIEF.md). Until that brief is
+ * committed, these variables exist to prove the wiring
+ * (packages/ui → apps/web via `@labpics/ui/tokens.css`) and MUST NOT be
+ * treated as final values or used by production components.
+ *
+ * TODO(ch01-design-system): replace placeholders with tokens consumed from
+ * DESIGN.md (color primitives, semantic colors, typography, spacing, radii,
+ * shadows, motion).
+ */
+:root {
+  /* TODO(DESIGN.md): color primitives */
+  /* TODO(DESIGN.md): semantic colors */
+  /* TODO(DESIGN.md): typography scale */
+  /* TODO(DESIGN.md): spacing scale */
+  /* TODO(DESIGN.md): radii & shadows */
+  /* TODO(DESIGN.md): motion durations & easings */
+}
