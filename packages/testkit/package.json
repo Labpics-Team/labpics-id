@@ -1,0 +1,31 @@
+{
+  "name": "@labpics/testkit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Labpics ID — test factories, Testcontainers Postgres helper, MSW handler scaffold.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "bun build ./src/index.ts --outdir ./dist --target=bun",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@labpics/db": "0.1.0",
+    "@testcontainers/postgresql": "12.1.0",
+    "msw": "2.15.0",
+    "testcontainers": "12.1.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "@types/pg": "8.21.0",
+    "typescript": "5.9.3"
+  }
+}

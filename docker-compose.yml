@@ -1,0 +1,24 @@
+# Local development Postgres 17 for Labpics ID.
+# Digest-pinned to guarantee the exact image used locally and in CI.
+services:
+  postgres:
+    image: postgres:17@sha256:7958605b474b3d264a969cb3a123d6aa00ad1e1fe9da8a69984dabb704d93317
+    container_name: labpics-id-postgres
+    environment:
+      POSTGRES_USER: labpics
+      POSTGRES_PASSWORD: labpics-dev-password
+      POSTGRES_DB: labpics
+    ports:
+      # Host port 54310 is used because 5432/5433/55432 are occupied by other
+      # Postgres instances on this machine (Labpics dev + spike containers).
+      - "54310:5432"
+    volumes:
+      - labpics_id_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labpics -d labpics"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  labpics_id_pgdata:
