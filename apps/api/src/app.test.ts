@@ -132,7 +132,7 @@ describe.skipIf(!runContainerTests)("readiness against a real database", () => {
   });
 
   afterAll(async () => {
-    await postgres.stop();
+    await postgres?.stop();
   });
 
   it("GET /ready returns 200 when the pool can reach Postgres", async () => {

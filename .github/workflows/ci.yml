@@ -33,7 +33,7 @@ jobs:
       - name: Start Postgres (docker compose, pre-pulls postgres:17)
         run: docker compose up -d
       - name: Test
-        run: bun test
+        run: bun run test
       - name: Apply migrations
         run: bun --cwd packages/db run migrate
       - name: Build
