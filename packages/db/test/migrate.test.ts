@@ -19,6 +19,7 @@ const runDbTest = dbTestConnection !== undefined || process.platform !== "win32"
 
 describe.skipIf(!runDbTest)("@labpics/db migrations", () => {
   let container: StartedPostgreSqlContainer | null = null;
+  let sharedPool: ReturnType<typeof createDbPool> | null = null;
 
   beforeAll(async () => {
     if (dbTestConnection !== undefined) return;
@@ -26,6 +27,7 @@ describe.skipIf(!runDbTest)("@labpics/db migrations", () => {
   });
 
   afterAll(async () => {
+    await sharedPool?.end();
     await container?.stop();
   });
 
@@ -34,41 +36,61 @@ describe.skipIf(!runDbTest)("@labpics/db migrations", () => {
     if (connectionString === undefined) {
       throw new Error("no test database connection available");
     }
-    const pool = createDbPool(connectionString);
-    const db = createDb(pool);
-    try {
-      await migrate(db, { migrationsFolder });
+    sharedPool = createDbPool(connectionString);
+    const db = createDb(sharedPool);
+    await migrate(db, { migrationsFolder });
 
-      const tablesResult = await pool.query(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
-      );
-      const tables = tablesResult.rows.map((r) => r.table_name as string);
-      const expected = [
-        "users",
-        "sessions",
-        "accounts",
-        "verification_tokens",
-        "audit_events",
-        "outbox",
-        "organization",
-        "member",
-        "role",
-        "permission",
-        "product_access",
-      ];
-      for (const table of expected) {
-        expect(tables).toContain(table);
-      }
-
-      const auditColumnsResult = await pool.query(
-        "SELECT column_name FROM information_schema.columns WHERE table_name = 'audit_events' ORDER BY ordinal_position",
-      );
-      const auditColumns = auditColumnsResult.rows.map((r) => r.column_name as string);
-      expect(auditColumns).toContain("hash");
-      expect(auditColumns).toContain("prev_hash");
-      expect(auditColumns).toContain("occurred_at");
-    } finally {
-      await pool.end();
+    const tablesResult = await sharedPool.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
+    );
+    const tables = tablesResult.rows.map((r) => r.table_name as string);
+    const expected = [
+      "users",
+      "sessions",
+      "accounts",
+      "verification_tokens",
+      "audit_events",
+      "outbox",
+      "organization",
+      "member",
+      "role",
+      "permission",
+      "product_access",
+    ];
+    for (const table of expected) {
+      expect(tables).toContain(table);
     }
+
+    const auditColumnsResult = await sharedPool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'audit_events' ORDER BY ordinal_position",
+    );
+    const auditColumns = auditColumnsResult.rows.map((r) => r.column_name as string);
+    expect(auditColumns).toContain("hash");
+    expect(auditColumns).toContain("prev_hash");
+    expect(auditColumns).toContain("occurred_at");
+    await sharedPool.query(
+      "INSERT INTO organization (id, name, slug) VALUES ('org-a', 'A', 'a'), ('org-b', 'B', 'b') ON CONFLICT DO NOTHING",
+    );
+    await sharedPool.query(
+      "INSERT INTO role (id, organization_id, name) VALUES ('role-a', 'org-a', 'admin') ON CONFLICT DO NOTHING",
+    );
+    await sharedPool.query(
+      "INSERT INTO member (id, organization_id, user_id, role_id) VALUES ('member-a', 'org-a', 'subject-1', 'role-a') ON CONFLICT DO NOTHING",
+    );
+
+    const duplicateMembership = await sharedPool
+      .query(
+        "INSERT INTO member (id, organization_id, user_id) VALUES ('member-duplicate', 'org-a', 'subject-1')",
+      )
+      .then(() => false)
+      .catch(() => true);
+    const crossTenantRole = await sharedPool
+      .query(
+        "INSERT INTO member (id, organization_id, user_id, role_id) VALUES ('member-cross-tenant', 'org-b', 'subject-2', 'role-a')",
+      )
+      .then(() => false)
+      .catch(() => true);
+    expect(duplicateMembership).toBe(true);
+    expect(crossTenantRole).toBe(true);
   });
 });
