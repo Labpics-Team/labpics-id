@@ -169,8 +169,10 @@ describe("V1 brand accent", () => {
   const { light, dark } = loadThemeTokens();
 
   it("anchors --lab-accent-blue at brand #007AFF in both themes", () => {
-    expect(light["--lab-accent-blue"]).toBe("#007aff");
-    expect(dark["--lab-accent-blue"]).toBe("#007aff");
+    // Hex is case-insensitive; DESIGN.md documents #007AFF, tokens.css may
+    // use either casing.
+    expect(light["--lab-accent-blue"]?.toLowerCase()).toBe("#007aff");
+    expect(dark["--lab-accent-blue"]?.toLowerCase()).toBe("#007aff");
   });
 
   it("contains no teal accent (brief V1: no teal anywhere)", () => {
@@ -195,6 +197,20 @@ describe("G1 react dev tooling gate", () => {
   });
 });
 
+describe("R0 breakpoint sync", () => {
+  it("apps/web @theme --breakpoint-* equals tokens.css --bp-* (one min-width convention)", () => {
+    const { light } = loadThemeTokens();
+    const globals = readFileSync(join(webAppRoot, "src", "app", "globals.css"), "utf8");
+    const read = (name: string): string => {
+      const m = globals.match(new RegExp(`${name}\\s*:\\s*([^;]+);`));
+      if (!m || m[1] === undefined) throw new Error(`Missing ${name} in globals.css`);
+      return m[1].trim();
+    };
+    expect(read("--breakpoint-sm")).toBe(light["--bp-sm"]);
+    expect(read("--breakpoint-lg")).toBe(light["--bp-lg"]);
+  });
+});
+
 describe("B1 design brief reconciliation", () => {
   const briefPath = join(repoRoot, "docs", "design", "DESIGN-BRIEF.md");
   const designPath = join(repoRoot, "DESIGN.md");
@@ -211,8 +227,14 @@ describe("B1 design brief reconciliation", () => {
     expect(brief).toContain("## 5. State contract");
   });
 
-  it("DESIGN.md exists with all 7 sections and the availability decision", () => {
+  it("DESIGN.md exists with all 7 sections as real headings", () => {
     const design = readFileSync(designPath, "utf8");
+    // Heading lines like "## 1. Atmosphere & Identity" — the section must be
+    // an actual h2, not a prose mention or a TOC entry.
+    const headings = design
+      .split("\n")
+      .filter((l: string) => l.startsWith("## "))
+      .map((l: string) => l.replace(/^##\s+(?:\d+\.\s+)?/, "").trim());
     for (const section of [
       "Atmosphere & Identity",
       "Color",
@@ -222,8 +244,7 @@ describe("B1 design brief reconciliation", () => {
       "Motion & Interaction",
       "Depth & Surface",
     ]) {
-      expect(design).toContain(`## `);
-      expect(design).toContain(section);
+      expect(headings).toContain(section);
     }
     expect(design).toContain("#007AFF");
     expect(design).toContain("--lab-accent-blue");

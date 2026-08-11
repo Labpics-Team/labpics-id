@@ -3,7 +3,7 @@
 **Status:** draft for team review · **Date:** 2026-08-10 · **Author:** ux-design
 **Scope:** login / account / admin / developer surfaces for **Labpics ID**
 **Brand:** infrastructure product under the **Labpics** master brand (design studio, London/Moscow, est. 2017) — not an independent SaaS brand
-**Stack target:** Next.js App Router (planned), React Server Components, `labui` + `lab-colors` + `@labpics/motion`
+**Stack target:** Next.js App Router (planned), React Server Components, the local `@labpics/ui` token + primitive layer (replicating the `labui`/`lab-colors` contract — see `DESIGN.md` §1 availability decision; runtime `@labpics/colors`/`@labpics/motion` adoption is a deferred option, not a current import)
 **Bar:** Clerk-level *quality* benchmark only — every screen fully specified with states, responsive behavior, a11y and motion; no generic dashboard slop. We do not imitate Clerk's brand or any provider's brand.
 
 ---
@@ -201,7 +201,7 @@ Legend for every entry:
 - **L:** Same card; identifier shown as static "as **user@lab.pics**" + change link. Password field with show/hide + reveal icon. Forgot password link. Continue.
 - **C:** `PasswordField` (autocomplete="current-password", reveal toggle 24px icon), `Button`, `TextLink`.
 - **I:** Reveal toggle; Enter submits; on 401 → inline error "Incorrect password" + shake? No — `calm` error reveal (never shake; motion rules). After N failures policy-driven lockout notice appears (see A17).
-- **S:** `loading`, `error` (bad password — field-level, keep focus), `error` (lockout — screen-level banner with countdown), `success` (ceremony → redirect), `disabled` (during rate-limit).
+- **S:** `loading`, `empty` (not applicable — identifier already resolved, screen always has context; documented n/a per §5.1), `error` (bad password — field-level, keep focus), `error` (lockout — screen-level banner with countdown), `success` (ceremony → redirect), `disabled` (during rate-limit).
 - **R:** Mobile: same, single column.
 - **A:** `autocomplete=current-password`, error linked `aria-describedby`, reveal button `aria-label="Show password"` + pressed state, countdown for lockout `aria-live=polite`, password managers supported (no autocomplete=off ever).
 
@@ -298,7 +298,7 @@ Legend for every entry:
 - **L:** Full-screen (not card) — lock icon, title "Your account is locked", reason tier (policy lockout vs suspension), action: "Reset password" / "Contact support" / "Try again in MM:SS" (countdown for lockout).
 - **C:** `StatusBanner(error)`, `Countdown`, `Button`, `TextLink`.
 - **I:** Countdown enables button; reset link.
-- **S:** `loading`, `error` (recovery fails), `empty` — all states still render full-screen layout.
+- **S:** `loading`, `error` (recovery fails), `empty`, `success` (recovery path initiated — confirmation before redirect) — all states still render full-screen layout.
 - **R/A:** `role=alert` on reason, countdown `aria-live`, no auto-redirect without notice.
 
 #### A13. Session expired / re-authentication
@@ -353,7 +353,7 @@ Shell: topbar (brand, org switcher, theme, avatar) + content. Max-width 720px ce
 - **L:** Grouped settings list (`Grouped` backgrounds): Profile / Contact / Language / Timezone. Each row: label + current value + edit affordance (inline edit panel or drawer).
 - **C:** `GroupedList`, `TextField`, `AvatarPicker`, `Select`, `SaveBar` (sticky bottom: Save / Cancel, appears on dirty).
 - **I:** Email change → sends verification (A6) before commit. Locale/timezone instant apply (client + persisted).
-- **S:** `loading`, `error` (email already in use — typed), `error` (save failed — retry), `success` (toast "Saved", calm), `disabled` (fields locked by SSO/SCIM — show "Managed by your organization" note, no fake editability).
+- **S:** `loading`, `empty` (not applicable — profile always has server-backed values; documented n/a per §5.1), `error` (email already in use — typed), `error` (save failed — retry), `success` (toast "Saved", calm), `disabled` (fields locked by SSO/SCIM — show "Managed by your organization" note, no fake editability).
 - **R:** Grouped list → stacked cards mobile.
 - **A:** All inputs labeled, dirty-state announcement `aria-live=polite`, Save button disabled until dirty, focus returns to edit trigger on cancel.
 
@@ -701,7 +701,7 @@ Shell: sidebar (Quickstart, Applications, Keys & tokens, Auth flows, Webhooks, S
 | `partial` | Multi-part load with some failure | Render successes + inline error for the failed region | No whole-screen failure |
 
 **Rules:**
-1. A screen spec that doesn't name at least `loading`, `empty`, `error`, `success` is incomplete (QA gate §9.5).
+1. A screen spec that doesn't name at least `loading`, `empty`, `error`, `success` is incomplete (QA gate §9.5). A state may be declared **not applicable** only with an explicit inline justification ("documented n/a per §5.1") — silent omission is a spec defect.
 2. Error and empty copy are written in Russian, no jargon for end-user surfaces (login/account); admin/developer may use precise technical terms (per labpics-cloud ch07 precedent: client console RU-only no-jargon; operator surfaces technical).
 3. `empty` states are part of the design — they ship with illustrations/iconography and teach, never text-only lorem.
 

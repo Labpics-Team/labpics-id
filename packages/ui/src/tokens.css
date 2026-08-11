@@ -123,10 +123,12 @@
   --lab-ease-linear: linear;
 
   /* ---- Breakpoints (documentation tokens; media queries cannot read
-   *      custom properties — Tailwind @theme mirrors these values) ---- */
-  --bp-sm: 40rem; /* 640px  — below: single column */
-  --bp-md: 64rem; /* 1024px — 640–1024: 2-col, tables→cards */
-  --bp-lg: 96rem; /* 1536px — full shell upper bound for QA matrix */
+   *      custom properties — apps/web @theme declares the same min-width
+   *      values statically, and the QA rubric asserts they stay in sync).
+   *      Contract (brief §6.1): <640px single column; 640–1024px mid;
+   *      >1024px full shell. ---- */
+  --bp-sm: 40rem; /* 640px  min-width — enter mid layout */
+  --bp-lg: 64rem; /* 1024px min-width — enter full shell */
 }
 
 /*

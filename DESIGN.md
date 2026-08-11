@@ -123,13 +123,13 @@ Type is set in `rem` (tokens store rem values). Long mono strings wrap with `bre
 - **Radius:** `--lab-radius-sm` 4px, `--lab-radius-md` 8px (cards, inputs), `--lab-radius-lg` 12px, `--lab-radius-pill` 999px (badges). Corner softening applies to controls, never to data tables.
 - **Hairline:** `--lab-hairline` (1px) is the only separator. Cards use hairlines, not shadows.
 
-Breakpoints (fluid, not device-locked):
+Breakpoints (fluid, not device-locked; one min-width convention — Tailwind `sm:`/`lg:` variants map to the same values in `apps/web` `@theme`):
 
-| Token | Width | Behavior |
+| Range | Min-width token | Behavior |
 |---|---|---|
-| `--bp-sm` | < 640px | Single column, bottom-sheet menus, full-width actions |
-| `--bp-md` | 640–1024px | 2-col grids, tables→cards, drawer nav |
-| `--bp-lg` | > 1024px | Full shell (sidebar), 3–4 col grids, split panels |
+| base (< 640px) | — | Single column, bottom-sheet menus, full-width actions |
+| `sm` (≥ 640px) | `--bp-sm` = 40rem | 2-col grids, tables→cards, drawer nav |
+| `lg` (≥ 1024px) | `--bp-lg` = 64rem | Full shell (sidebar), 3–4 col grids, split panels |
 
 Shell maxima: auth card 440px; account settings content 720px; list surfaces 1100px. Touch targets ≥ 44×44px with ≥ 8px gaps (WCAG 2.5.8). Reflow: no content loss at 320px @ 400% zoom (WCAG 1.4.10).
 

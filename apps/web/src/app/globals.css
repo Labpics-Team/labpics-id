@@ -12,6 +12,25 @@
   --font-sans: var(--lab-font-display);
   --font-mono: var(--lab-font-mono);
 
+  /* Typography scale → text-display/h1/h2/h3/body/small/mono-size utilities.
+   * Tailwind default text-* sizes stay available but the semantic steps are
+   * the documented scale (DESIGN.md §3). */
+  --text-*: initial;
+  --text-display: var(--lab-text-display);
+  --text-display--line-height: var(--lab-text-display-lh);
+  --text-h1: var(--lab-text-h1);
+  --text-h1--line-height: var(--lab-text-h1-lh);
+  --text-h2: var(--lab-text-h2);
+  --text-h2--line-height: var(--lab-text-h2-lh);
+  --text-h3: var(--lab-text-h3);
+  --text-h3--line-height: var(--lab-text-h3-lh);
+  --text-body: var(--lab-text-body);
+  --text-body--line-height: var(--lab-text-body-lh);
+  --text-small: var(--lab-text-small);
+  --text-small--line-height: var(--lab-text-small-lh);
+  --text-mono-size: var(--lab-text-mono);
+  --text-mono-size--line-height: var(--lab-text-mono-lh);
+
   --color-*: initial;
   --color-surface: var(--lab-bg-primary);
   --color-surface-2: var(--lab-bg-secondary);
@@ -46,4 +65,16 @@
   --shadow-1: var(--lab-shadow-1);
   --shadow-2: var(--lab-shadow-2);
   --shadow-3: var(--lab-shadow-3);
+}
+
+/*
+ * Breakpoints: media queries cannot read custom properties, so the min-width
+ * values are declared statically here and MUST equal --bp-sm/--bp-lg in
+ * packages/ui/src/tokens.css (rubric check R0 keeps them in sync).
+ * One convention: base <640px, sm ≥640px (mid), lg ≥1024px (full shell).
+ */
+@theme {
+  --breakpoint-*: initial;
+  --breakpoint-sm: 40rem;
+  --breakpoint-lg: 64rem;
 }

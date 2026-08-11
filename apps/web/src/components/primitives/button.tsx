@@ -8,7 +8,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const BASE_CLASSES =
-  "inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50";
+  "inline-flex min-h-11 items-center justify-center rounded-md px-4 text-small font-medium transition-colors duration-(--lab-motion-instant) ease-(--lab-ease-out) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50";
 
 const VARIANT_CLASSES: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary: "bg-accent-strong text-on-accent hover:bg-accent-hover",

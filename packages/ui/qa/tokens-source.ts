@@ -22,8 +22,12 @@ export interface ThemeTokens {
 const DECL_RE = /(--[a-z0-9-]+)\s*:\s*([^;]+);/gi;
 
 function parseDeclarations(cssBlock: string): Record<string, string> {
+  // Strip comments first: a commented-out declaration must never become a
+  // live token (it would let B1 presence checks and contrast assertions pass
+  // against stale values).
+  const withoutComments = cssBlock.replace(/\/\*[\s\S]*?\*\//g, "");
   const out: Record<string, string> = {};
-  for (const m of cssBlock.matchAll(DECL_RE)) {
+  for (const m of withoutComments.matchAll(DECL_RE)) {
     const name = m[1];
     const value = m[2];
     if (name === undefined || value === undefined) continue;
