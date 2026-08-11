@@ -1,21 +1,226 @@
 /*
- * Labpics ID design tokens — PLACEHOLDER ONLY.
+ * Labpics ID design tokens — source of truth for all visual values.
  *
- * The final token set is owned by the ch01-design-system task and its
- * DESIGN.md brief (docs/design/DESIGN-BRIEF.md). Until that brief is
- * committed, these variables exist to prove the wiring
- * (packages/ui → apps/web via `@labpics/ui/tokens.css`) and MUST NOT be
- * treated as final values or used by production components.
- *
- * TODO(ch01-design-system): replace placeholders with tokens consumed from
- * DESIGN.md (color primitives, semantic colors, typography, spacing, radii,
- * shadows, motion).
+ * Contract (DESIGN.md at repo root):
+ *   - Components read ONLY var(--lab-*) — raw hex/rgb/hsl in component code is
+ *     a token-purity violation (enforced by packages/ui/qa/qa-rubric.ts).
+ *   - This file and DESIGN.md are the only places raw color values may appear.
+ *   - Accent = Labpics Blue, anchored at brand #007AFF (lab.pics/brand).
+ *     The family exposes the anchor (--lab-accent-blue) for non-text signal
+ *     roles (focus ring, active nav, live indicators) and a contrast-solved
+ *     "strong" member for filled primary actions and accent-colored text —
+ *     replicating the @labpics/colors perceptual-family approach with static
+ *     values (see DESIGN.md §2 for the availability decision).
+ *   - Every text/background pair listed in DESIGN.md §2.4 is machine-checked
+ *     for WCAG 2.2 AA (4.5:1 body, 3:1 large/UI) by the QA rubric.
+ *   - Dark theme: [data-theme="dark"] wins; otherwise prefers-color-scheme
+ *     applies. The two dark blocks are asserted byte-identical by the rubric
+ *     to prevent drift.
  */
+
 :root {
-  /* TODO(DESIGN.md): color primitives */
-  /* TODO(DESIGN.md): semantic colors */
-  /* TODO(DESIGN.md): typography scale */
-  /* TODO(DESIGN.md): spacing scale */
-  /* TODO(DESIGN.md): radii & shadows */
-  /* TODO(DESIGN.md): motion durations & easings */
+  color-scheme: light;
+
+  /* ---- Color: backgrounds (light) ---- */
+  --lab-bg-primary: #ffffff;
+  --lab-bg-secondary: #f7f8fa;
+  --lab-bg-tertiary: #eff1f4;
+  --lab-bg-grouped: #f2f4f7;
+  --lab-bg-grouped-row: #ffffff;
+
+  /* ---- Color: labels (light) ---- */
+  --lab-label-p: #16181d;
+  --lab-label-s: #4a5260;
+  --lab-label-t: #5c6675;
+  --lab-label-q: #98a1af; /* disabled — WCAG 1.4.3 exempts inactive UI */
+
+  /* ---- Color: Labpics Blue accent family (light) ----
+   * anchor  — brand #007AFF: focus ring, active nav, live/health, large text.
+   * strong  — contrast-solved member: filled primary action bg, accent text.
+   * on      — label solved for the strong fill.
+   */
+  --lab-accent-blue: #007aff;
+  --lab-accent-blue-strong: #0062cc;
+  --lab-accent-blue-hover: #0056b3;
+  --lab-accent-text: #0062cc;
+  --lab-on-accent: #ffffff;
+
+  /* ---- Color: sentiments (light; text/icon roles) ---- */
+  --lab-sentiment-success: #166534;
+  --lab-sentiment-warning: #92400e;
+  --lab-sentiment-error: #b91c1c;
+  --lab-sentiment-info: #075985;
+
+  /* ---- Color: sentiment surface tints (light) ---- */
+  --lab-sentiment-success-bg: #e7f6ec;
+  --lab-sentiment-warning-bg: #fcf0df;
+  --lab-sentiment-error-bg: #fce9e9;
+  --lab-sentiment-info-bg: #e6f2fa;
+
+  /* ---- Color: borders (light) ---- */
+  --lab-border-hairline: #e3e6eb; /* decorative separator — no AA requirement */
+  --lab-border-strong: #6b7484; /* input/control borders — must hold 3:1 */
+
+  /* ---- Focus (2px ring + 2px gap; never outline:none) ---- */
+  --lab-focus-color: var(--lab-accent-blue);
+  --lab-focus-width: 2px;
+  --lab-focus-gap: 2px;
+
+  /* ---- Typography ---- */
+  --lab-font-display: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
+  --lab-font-mono: var(--font-geist-mono, ui-monospace, monospace);
+
+  --lab-text-display: 2.25rem; /* 36px */
+  --lab-text-display-lh: 1.15;
+  --lab-text-h1: 1.75rem; /* 28px */
+  --lab-text-h1-lh: 1.2;
+  --lab-text-h2: 1.375rem; /* 22px */
+  --lab-text-h2-lh: 1.3;
+  --lab-text-h3: 1.125rem; /* 18px */
+  --lab-text-h3-lh: 1.35;
+  --lab-text-body: 0.9375rem; /* 15px */
+  --lab-text-body-lh: 1.5;
+  --lab-text-small: 0.8125rem; /* 13px */
+  --lab-text-small-lh: 1.45;
+  --lab-text-mono: 0.8125rem; /* 13px */
+  --lab-text-mono-lh: 1.5;
+
+  /* ---- Spacing (4px grid — the only permitted gaps) ---- */
+  --lab-space-4: 0.25rem;
+  --lab-space-8: 0.5rem;
+  --lab-space-12: 0.75rem;
+  --lab-space-16: 1rem;
+  --lab-space-24: 1.5rem;
+  --lab-space-32: 2rem;
+  --lab-space-48: 3rem;
+  --lab-space-64: 4rem;
+
+  /* ---- Radius ---- */
+  --lab-radius-sm: 4px;
+  --lab-radius-md: 8px; /* cards, inputs */
+  --lab-radius-lg: 12px;
+  --lab-radius-pill: 999px; /* badges */
+
+  /* ---- Elevation (dialog 3, dropdown 2; cards use hairline, not shadow) ---- */
+  --lab-shadow-0: none;
+  --lab-shadow-1: 0 1px 2px 0 rgb(22 24 29 / 6%);
+  --lab-shadow-2: 0 4px 12px -2px rgb(22 24 29 / 10%);
+  --lab-shadow-3: 0 12px 32px -4px rgb(22 24 29 / 16%);
+
+  /* ---- Hairline (the only separator; no grey boxes) ---- */
+  --lab-hairline: 1px solid var(--lab-border-hairline);
+
+  /* ---- Iconography (Radix Icons; one family, no emojis) ---- */
+  --lab-icon-sm: 16px;
+  --lab-icon-md: 20px;
+  --lab-icon-lg: 24px;
+
+  /* ---- Motion characters (@labpics/motion preset alignment) ---- */
+  --lab-motion-instant: 80ms;
+  --lab-motion-calm: 200ms;
+  --lab-motion-ceremony: 400ms;
+  --lab-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --lab-ease-linear: linear;
+
+  /* ---- Breakpoints (documentation tokens; media queries cannot read
+   *      custom properties — Tailwind @theme mirrors these values) ---- */
+  --bp-sm: 40rem; /* 640px  — below: single column */
+  --bp-md: 64rem; /* 1024px — 640–1024: 2-col, tables→cards */
+  --bp-lg: 96rem; /* 1536px — full shell upper bound for QA matrix */
+}
+
+/*
+ * Dark theme. Two entry points, byte-identical bodies (rubric-enforced):
+ *   1. explicit user choice [data-theme="dark"];
+ *   2. OS preference when no explicit choice was made.
+ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --lab-bg-primary: #0c0e13;
+  --lab-bg-secondary: #14171e;
+  --lab-bg-tertiary: #1c2029;
+  --lab-bg-grouped: #11141a;
+  --lab-bg-grouped-row: #14171e;
+
+  --lab-label-p: #e9ecf2;
+  --lab-label-s: #a8b0bd;
+  --lab-label-t: #8a93a3;
+  --lab-label-q: #5c6675;
+
+  --lab-accent-blue: #007aff;
+  --lab-accent-blue-strong: #0f6fdd;
+  --lab-accent-blue-hover: #0062cc;
+  --lab-accent-text: #55a2ff;
+  --lab-on-accent: #ffffff;
+
+  --lab-sentiment-success: #4ade80;
+  --lab-sentiment-warning: #fbbf24;
+  --lab-sentiment-error: #f87171;
+  --lab-sentiment-info: #38bdf8;
+
+  --lab-sentiment-success-bg: #12291b;
+  --lab-sentiment-warning-bg: #2c2110;
+  --lab-sentiment-error-bg: #2c1515;
+  --lab-sentiment-info-bg: #0f2436;
+
+  --lab-border-hairline: #262b35;
+  --lab-border-strong: #7e8798;
+
+  --lab-shadow-1: 0 1px 2px 0 rgb(0 0 0 / 40%);
+  --lab-shadow-2: 0 4px 12px -2px rgb(0 0 0 / 50%);
+  --lab-shadow-3: 0 12px 32px -4px rgb(0 0 0 / 60%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --lab-bg-primary: #0c0e13;
+    --lab-bg-secondary: #14171e;
+    --lab-bg-tertiary: #1c2029;
+    --lab-bg-grouped: #11141a;
+    --lab-bg-grouped-row: #14171e;
+
+    --lab-label-p: #e9ecf2;
+    --lab-label-s: #a8b0bd;
+    --lab-label-t: #8a93a3;
+    --lab-label-q: #5c6675;
+
+    --lab-accent-blue: #007aff;
+    --lab-accent-blue-strong: #0f6fdd;
+    --lab-accent-blue-hover: #0062cc;
+    --lab-accent-text: #55a2ff;
+    --lab-on-accent: #ffffff;
+
+    --lab-sentiment-success: #4ade80;
+    --lab-sentiment-warning: #fbbf24;
+    --lab-sentiment-error: #f87171;
+    --lab-sentiment-info: #38bdf8;
+
+    --lab-sentiment-success-bg: #12291b;
+    --lab-sentiment-warning-bg: #2c2110;
+    --lab-sentiment-error-bg: #2c1515;
+    --lab-sentiment-info-bg: #0f2436;
+
+    --lab-border-hairline: #262b35;
+    --lab-border-strong: #7e8798;
+
+    --lab-shadow-1: 0 1px 2px 0 rgb(0 0 0 / 40%);
+    --lab-shadow-2: 0 4px 12px -2px rgb(0 0 0 / 50%);
+    --lab-shadow-3: 0 12px 32px -4px rgb(0 0 0 / 60%);
+  }
+}
+
+/*
+ * Reduced motion = character switch (ceremony→calm→instant→static),
+ * per @labpics/motion invariant. Durations collapse; easing simplifies.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --lab-motion-instant: 0ms;
+    --lab-motion-calm: 80ms;
+    --lab-motion-ceremony: 80ms;
+    --lab-ease-out: linear;
+  }
 }

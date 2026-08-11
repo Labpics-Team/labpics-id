@@ -1,7 +1,49 @@
 @import "tailwindcss";
 @import "@labpics/ui/tokens.css";
 
-@theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+/*
+ * Tailwind v4 theme wired to the DESIGN.md tokens (packages/ui/src/tokens.css).
+ * Components use Tailwind utilities (bg-surface, text-label-p, ...) which
+ * resolve to var(--lab-*) — no raw values enter component code. `inline` keeps
+ * utilities pointing at the live custom properties so [data-theme] and
+ * prefers-color-scheme switching work without re-generation.
+ */
+@theme inline {
+  --font-sans: var(--lab-font-display);
+  --font-mono: var(--lab-font-mono);
+
+  --color-*: initial;
+  --color-surface: var(--lab-bg-primary);
+  --color-surface-2: var(--lab-bg-secondary);
+  --color-surface-3: var(--lab-bg-tertiary);
+  --color-grouped: var(--lab-bg-grouped);
+  --color-grouped-row: var(--lab-bg-grouped-row);
+  --color-label-p: var(--lab-label-p);
+  --color-label-s: var(--lab-label-s);
+  --color-label-t: var(--lab-label-t);
+  --color-label-q: var(--lab-label-q);
+  --color-accent: var(--lab-accent-blue);
+  --color-accent-strong: var(--lab-accent-blue-strong);
+  --color-accent-hover: var(--lab-accent-blue-hover);
+  --color-accent-text: var(--lab-accent-text);
+  --color-on-accent: var(--lab-on-accent);
+  --color-success: var(--lab-sentiment-success);
+  --color-warning: var(--lab-sentiment-warning);
+  --color-error: var(--lab-sentiment-error);
+  --color-info: var(--lab-sentiment-info);
+  --color-success-bg: var(--lab-sentiment-success-bg);
+  --color-warning-bg: var(--lab-sentiment-warning-bg);
+  --color-error-bg: var(--lab-sentiment-error-bg);
+  --color-info-bg: var(--lab-sentiment-info-bg);
+  --color-hairline: var(--lab-border-hairline);
+  --color-border-strong: var(--lab-border-strong);
+
+  --radius-sm: var(--lab-radius-sm);
+  --radius-md: var(--lab-radius-md);
+  --radius-lg: var(--lab-radius-lg);
+  --radius-pill: var(--lab-radius-pill);
+
+  --shadow-1: var(--lab-shadow-1);
+  --shadow-2: var(--lab-shadow-2);
+  --shadow-3: var(--lab-shadow-3);
 }
