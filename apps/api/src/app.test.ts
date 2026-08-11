@@ -3,16 +3,19 @@ import type { ErrorEnvelope } from "@labpics/contracts";
 import { type PostgresTestContainer, startPostgres } from "@labpics/testkit";
 import { Hono } from "hono";
 import { type AppDeps, createApp } from "./app";
+import type { AuthPort } from "./auth/port";
 import { type AppConfig, loadConfig } from "./config";
 import { createDatabaseConnection } from "./lib/db";
 import { createLogger, type Logger } from "./lib/logger";
 import { errorEnvelope } from "./middleware/error-envelope";
 import { requestId } from "./middleware/request-id";
+import { timeout } from "./middleware/timeout";
 import type { AppVariables } from "./types";
 
 function testConfig(env: Record<string, string | undefined> = {}): AppConfig {
   return loadConfig({
     NODE_ENV: "test",
+    BETTER_AUTH_SECRET: "test-only-secret-with-at-least-32-characters",
     LOG_LEVEL: "fatal",
     CORS_ALLOWED_ORIGINS: "http://localhost:3001",
     REQUEST_TIMEOUT_MS: "5000",
@@ -23,7 +26,10 @@ function testConfig(env: Record<string, string | undefined> = {}): AppConfig {
 function makeDeps(env: Record<string, string | undefined> = {}): AppDeps {
   const config = testConfig(env);
   const logger = createLogger(config.logLevel);
-  return { config, logger, database: null };
+  const auth: AuthPort = {
+    fetch: async () => new Response("test auth", { status: 200 }),
+  };
+  return { config, logger, database: null, auth };
 }
 
 const logger: Logger = createLogger("fatal");
@@ -61,6 +67,25 @@ describe("api bootstrap", () => {
     expect(body.requestId).toBe("test-request-123");
   });
 
+  it("delegates /auth requests to the injected authentication port", async () => {
+    const requests: Request[] = [];
+    const auth: AuthPort = {
+      fetch: async (request) => {
+        requests.push(request);
+        return Response.json({ delegated: true }, { status: 202 });
+      },
+    };
+    const app = createApp({ ...makeDeps(), auth });
+
+    const res = await app.request("/auth/session?fresh=true", { method: "POST" });
+
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ delegated: true });
+    expect(requests).toHaveLength(1);
+    expect(new URL(requests[0]?.url ?? "").pathname).toBe("/auth/session");
+    expect(requests[0]?.method).toBe("POST");
+  });
+
   it("returns a generic 500 envelope without leaking internals", async () => {
     const app = new Hono<{ Variables: AppVariables }>();
     app.use("*", requestId());
@@ -79,6 +104,40 @@ describe("api bootstrap", () => {
     const app = createApp(makeDeps());
     const res = await app.request("/health", { headers: { "x-request-id": "abc-123" } });
     expect(res.headers.get("x-request-id")).toBe("abc-123");
+  });
+
+  it.each(["", "contains space", "contains/slash", "a".repeat(65)])(
+    "replaces invalid incoming request id %s with a UUID",
+    async (incoming) => {
+      const app = createApp(makeDeps());
+      const res = await app.request("/health", { headers: { "x-request-id": incoming } });
+      expect(res.headers.get("x-request-id")).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
+    },
+  );
+
+  it("aborts the downstream request signal when the timeout expires", async () => {
+    const app = new Hono<{ Variables: AppVariables }>();
+    let downstreamAborted = false;
+    app.use("*", timeout(10));
+    app.get("/slow", async (c) => {
+      await new Promise<void>(() => {
+        c.req.raw.signal.addEventListener(
+          "abort",
+          () => {
+            downstreamAborted = true;
+          },
+          { once: true },
+        );
+      });
+      return c.text("cancelled");
+    });
+
+    const response = await app.request("/slow");
+
+    expect(response.status).toBe(504);
+    expect(downstreamAborted).toBe(true);
   });
 
   describe("cors allowlist", () => {

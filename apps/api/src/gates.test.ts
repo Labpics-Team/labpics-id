@@ -8,6 +8,8 @@ const srcDir = join(import.meta.dir);
 // scans it defines.
 const BETTER_AUTH_IMPORT_RE =
   /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'][b]etter-auth(?:["'/])/;
+const BETTER_AUTH_ADAPTER_IMPORT_RE =
+  /(?:from\s*|import\s*\(\s*)["'][^"']*[b]etter-auth\.adapter["']/;
 const AS_ANY_RE = /\bas\s+any\b/;
 const TS_IGNORE_RE = /@[t]s-ignore/;
 const TS_NOCHECK_RE = /@[t]s-nocheck/;
@@ -41,6 +43,24 @@ describe("api dependency gates", () => {
         expect(matches, "the adapter module must import better-auth").not.toBeNull();
       } else {
         expect(matches, `${file} must not import better-auth`).toBeNull();
+      }
+    }
+  });
+
+  it("imports the concrete authentication adapter only from the composition root", () => {
+    for (const file of collectTsFiles(srcDir)) {
+      if (normalize(file) === normalize(import.meta.path)) continue;
+      const source = readFileSync(file, "utf8");
+      const matches = source.match(BETTER_AUTH_ADAPTER_IMPORT_RE);
+      const isCompositionRoot = normalize(file).endsWith("src/index.ts");
+      const isAdapterTest = normalize(file).endsWith("src/auth/better-auth.adapter.test.ts");
+      if (isCompositionRoot) {
+        expect(
+          matches,
+          "the composition root must select the concrete auth adapter",
+        ).not.toBeNull();
+      } else if (!isAdapterTest) {
+        expect(matches, `${file} must depend on AuthPort, not the concrete adapter`).toBeNull();
       }
     }
   });
