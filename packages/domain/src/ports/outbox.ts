@@ -1,16 +1,19 @@
 /**
  * Outbox port (secondary port, implemented by infrastructure).
  *
- * The domain enqueues events that must be delivered exactly once to other
- * bounded contexts; the implementation owns the transactional outbox table,
- * the dispatcher and the retry/dedup semantics.
+ * Delivery is at-least-once: dispatchers may redeliver after partial failure,
+ * so consumers must deduplicate by `idempotencyKey`. Enqueue participates in
+ * the caller's UnitOfWork transaction.
  */
+import type { TransactionContext } from "./unit-of-work";
+
 export interface OutboxEnvelope {
+  readonly idempotencyKey: string;
   readonly type: string;
   readonly payload: Readonly<Record<string, unknown>>;
   readonly occurredAt: Date;
 }
 
 export interface OutboxPort {
-  enqueue(envelope: OutboxEnvelope): Promise<void>;
+  enqueue(context: TransactionContext, envelope: OutboxEnvelope): Promise<void>;
 }
