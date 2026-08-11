@@ -24,7 +24,15 @@ Visual anchors (from the brief §1.3): the flask mark (clear space ≥ 1/5 of ma
 
 ### Availability decision: lab-colors / labui / lab-icons
 
-Verified against the public npm registry on 2026-08-11 (this repo is public, MIT):
+**Verified facts** (public npm registry + GitHub, 2026-08-11; reproducible commands below) are separated here from the **architectural decision** column, which is ours:
+
+```sh
+npm view @labpics/colors name version license repository.url  # → 0.10.0, MIT, github.com/Labpics-Team/lab-colors
+npm view @labpics/motion name version license repository.url  # → 0.3.0, MIT, github.com/Labpics-Team/lab-motion
+npm view @labpics/icons  name version license repository.url  # → 0.2.0, MIT, github.com/Labpics-Team/lab-icons
+npm view labui version                                        # → E404 (unscoped and @labpics/ui both absent)
+gh repo view Labpics-Team/labui --json visibility             # → PRIVATE
+```
 
 | Package | Status | Decision |
 |---|---|---|
