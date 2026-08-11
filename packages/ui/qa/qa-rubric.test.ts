@@ -22,6 +22,18 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { contrastRatio } from "./contrast";
 import { CONTRAST_PAIRS } from "./contrast-pairs";
+import { hexToOklch, hueDistance } from "./oklch";
+import {
+  findArbitraryValues,
+  findDefaultNamespaceUsage,
+  findDefaultPaletteUsage,
+  findEmoji,
+  findForbiddenHues,
+  findForeignIconImports,
+  findTransitionAll,
+  findUngatedDevTooling,
+} from "./purity-rules";
+import { resolveToken } from "./resolve-color";
 import { loadThemeTokens } from "./tokens-source";
 
 const repoRoot = join(import.meta.dir, "..", "..", "..");
@@ -141,11 +153,10 @@ describe("C1 WCAG 2.2 AA contrast — all declared token pairs, both themes", ()
     const tokens = theme === "light" ? light : dark;
     for (const pair of CONTRAST_PAIRS) {
       it(`${theme}: ${pair.fg} on ${pair.bg} ≥ ${pair.min}:1 (${pair.note})`, () => {
-        const fgValue = tokens[pair.fg];
-        const bgValue = tokens[pair.bg];
-        if (fgValue === undefined) throw new Error(`Unknown token ${pair.fg} in ${theme}`);
-        if (bgValue === undefined) throw new Error(`Unknown token ${pair.bg} in ${theme}`);
-        const ratio = contrastRatio(fgValue, bgValue);
+        // resolveToken follows var() chains and computes color-mix() — derived
+        // tokens (hover, tints, disabled) are checked as the browser renders
+        // them, not as source text.
+        const ratio = contrastRatio(resolveToken(pair.fg, tokens), resolveToken(pair.bg, tokens));
         expect(ratio).toBeGreaterThanOrEqual(pair.min);
       });
     }
@@ -175,23 +186,248 @@ describe("V1 brand accent", () => {
     expect(dark["--lab-accent-blue"]?.toLowerCase()).toBe("#007aff");
   });
 
-  it("contains no teal accent (brief V1: no teal anywhere)", () => {
-    const css = readFileSync(join(uiPackageRoot, "src", "tokens.css"), "utf8");
-    expect(css.toLowerCase()).not.toContain("teal");
+  it("contains no forbidden hue in ANY ui/web source — tokens, CSS and TSX (brief V1)", () => {
+    const files = [
+      ...collectFiles(uiPackageRoot, [".ts", ".tsx", ".css"]),
+      ...collectFiles(join(webAppRoot, "src"), [".ts", ".tsx", ".css"]),
+    ];
+    const violations: string[] = [];
+    for (const file of files) {
+      if (rel(file).startsWith("packages/ui/qa/")) continue;
+      for (const hit of findForbiddenHues(readFileSync(file, "utf8"))) {
+        violations.push(`${rel(file)}: ${hit}`);
+      }
+    }
+    expect(violations).toEqual([]);
   });
 });
 
-describe("G1 react dev tooling gate", () => {
-  it("keeps react-scan/react-doctor imports behind NODE_ENV === 'development'", () => {
+describe("O1 OKLCH hue stability", () => {
+  const { light, dark } = loadThemeTokens();
+
+  const FAMILY = [
+    "--lab-accent-blue",
+    "--lab-accent-blue-strong",
+    "--lab-accent-blue-hover",
+    "--lab-accent-text",
+  ] as const;
+
+  for (const theme of ["light", "dark"] as const) {
+    const tokens = theme === "light" ? light : dark;
+    it(`${theme}: every accent-family member stays within 10° of the #007AFF anchor`, () => {
+      const anchorHue = hexToOklch(resolveToken("--lab-accent-blue", tokens)).h;
+      const drifts: string[] = [];
+      for (const name of FAMILY) {
+        const { h, c } = hexToOklch(resolveToken(name, tokens));
+        if (c < 0.02) continue; // achromatic members have no meaningful hue
+        const d = hueDistance(h, anchorHue);
+        if (d >= 10) drifts.push(`${name}: ${d.toFixed(1)}° from anchor`);
+      }
+      expect(drifts).toEqual([]);
+    });
+  }
+
+  it("keeps neutrals in one temperature band (cool, chroma ≤ 0.03)", () => {
+    const NEUTRALS = [
+      "--lab-bg-secondary",
+      "--lab-bg-tertiary",
+      "--lab-label-p",
+      "--lab-label-s",
+      "--lab-label-t",
+      "--lab-border-hairline",
+    ] as const;
+    for (const theme of [light, dark]) {
+      for (const name of NEUTRALS) {
+        const { c, h } = hexToOklch(resolveToken(name, theme));
+        expect(c).toBeLessThanOrEqual(0.03);
+        if (c > 0.002) {
+          // Cool band around the accent hue — a warm grey would read as a
+          // second temperature (DESIGN.md §2.3).
+          expect(h).toBeGreaterThanOrEqual(230);
+          expect(h).toBeLessThanOrEqual(290);
+        }
+      }
+    }
+  });
+});
+
+describe("T7 typography derivation law (DESIGN.md §3.1)", () => {
+  const { light } = loadThemeTokens();
+
+  const px = (name: string): number => {
+    const v = light[name];
+    if (v === undefined) throw new Error(`Missing token ${name}`);
+    const m = v.match(/^([\d.]+)rem$/);
+    if (!m || m[1] === undefined) throw new Error(`${name} is not a rem value: ${v}`);
+    return Number.parseFloat(m[1]) * 16;
+  };
+
+  it("derives the ladder from base 15px by ×1.25 snapped to the nearest even px", () => {
+    const snapEven = (n: number) => Math.round(n / 2) * 2;
+    let step = px("--lab-text-body");
+    expect(step).toBe(15);
+    for (const role of ["--lab-text-h3", "--lab-text-h2", "--lab-text-h1", "--lab-text-display"]) {
+      step = snapEven(step * 1.25);
+      expect(px(role)).toBe(step);
+    }
+  });
+
+  it("holds the persistent-UI floor (13px) and the input floor (16px)", () => {
+    for (const role of [
+      "--lab-text-small",
+      "--lab-text-label",
+      "--lab-text-caps",
+      "--lab-text-mono",
+    ]) {
+      expect(px(role)).toBe(13);
+    }
+    expect(px("--lab-text-input")).toBeGreaterThanOrEqual(16);
+  });
+
+  it("stores line heights as visible calc(box/size) fractions with 4px-multiple boxes in band", () => {
+    const HEADING_BAND = [1.15, 1.35] as const;
+    const BODY_BAND = [1.4, 1.65] as const;
+    const roles: Array<[string, string, readonly [number, number]]> = [
+      ["--lab-text-display", "--lab-text-display-lh", HEADING_BAND],
+      ["--lab-text-h1", "--lab-text-h1-lh", HEADING_BAND],
+      ["--lab-text-h2", "--lab-text-h2-lh", HEADING_BAND],
+      ["--lab-text-h3", "--lab-text-h3-lh", HEADING_BAND],
+      ["--lab-text-body", "--lab-text-body-lh", BODY_BAND],
+      ["--lab-text-small", "--lab-text-small-lh", BODY_BAND],
+      ["--lab-text-label", "--lab-text-label-lh", BODY_BAND],
+      ["--lab-text-caps", "--lab-text-caps-lh", BODY_BAND],
+      ["--lab-text-mono", "--lab-text-mono-lh", BODY_BAND],
+      ["--lab-text-input", "--lab-text-input-lh", BODY_BAND],
+    ];
+    for (const [sizeToken, lhToken, [lo, hi]] of roles) {
+      const lhValue = light[lhToken];
+      if (lhValue === undefined) throw new Error(`Missing ${lhToken}`);
+      const m = lhValue.match(/^calc\(\s*([\d.]+)\s*\/\s*([\d.]+)\s*\)$/);
+      if (!m || m[1] === undefined || m[2] === undefined) {
+        throw new Error(`${lhToken} must be calc(box / size), got: ${lhValue}`);
+      }
+      const box = Number.parseFloat(m[1]);
+      const size = Number.parseFloat(m[2]);
+      expect(size).toBe(px(sizeToken)); // denominator IS the role size
+      expect(box % 4).toBe(0); // line box on the 4px grid
+      const lh = box / size;
+      expect(lh).toBeGreaterThanOrEqual(lo);
+      expect(lh).toBeLessThanOrEqual(hi);
+    }
+  });
+
+  it("grades tracking with size: negative on display→h3, zero on body, positive only on caps", () => {
+    const tr = (name: string): number => {
+      const v = light[name];
+      if (v === undefined) throw new Error(`Missing ${name}`);
+      const m = v.match(/^(-?[\d.]+)em$/);
+      if (!m || m[1] === undefined) throw new Error(`${name} is not an em value: ${v}`);
+      return Number.parseFloat(m[1]);
+    };
+    const display = tr("--lab-text-display-tracking");
+    const h1 = tr("--lab-text-h1-tracking");
+    const h2 = tr("--lab-text-h2-tracking");
+    const h3 = tr("--lab-text-h3-tracking");
+    expect(display).toBeLessThan(h1);
+    expect(h1).toBeLessThan(h2);
+    expect(h2).toBeLessThan(h3);
+    expect(h3).toBeLessThan(0);
+    expect(tr("--lab-text-body-tracking")).toBe(0);
+    expect(tr("--lab-text-small-tracking")).toBe(0);
+    expect(tr("--lab-text-mono-tracking")).toBe(0);
+    expect(tr("--lab-text-caps-tracking")).toBeGreaterThan(0);
+  });
+
+  it("declares role weights within 400–600 and a press scale ≥ 0.95", () => {
+    for (const role of ["display", "h1", "h2", "h3"]) {
+      expect(light[`--lab-text-${role}-weight`]).toBe("var(--lab-weight-semibold)");
+    }
+    expect(light["--lab-weight-semibold"]).toBe("600");
+    expect(light["--lab-weight-regular"]).toBe("400");
+    const scale = Number.parseFloat(light["--lab-press-scale"] ?? "0");
+    expect(scale).toBeGreaterThanOrEqual(0.95);
+    expect(scale).toBeLessThan(1);
+  });
+});
+
+describe("G1 react dev tooling gate (structural)", () => {
+  it("keeps every react-scan/react-doctor reference inside a NODE_ENV === 'development' block", () => {
     const files = collectFiles(join(webAppRoot, "src"), [".ts", ".tsx"]);
     const violations: string[] = [];
     for (const file of files) {
       const source = readFileSync(file, "utf8");
-      if (!/react-scan|react-doctor/.test(source)) continue;
-      const gated =
-        /NODE_ENV\s*===\s*["']development["']/.test(source) ||
-        /["']development["']\s*===\s*process\.env\.NODE_ENV/.test(source);
-      if (!gated) violations.push(`${rel(file)}: dev tooling not gated by NODE_ENV`);
+      for (const v of findUngatedDevTooling(source)) {
+        violations.push(`${rel(file)}: ${v}`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+});
+
+describe("T6 Tailwind drift (TSX class purity)", () => {
+  const tsxFiles = () => [
+    ...collectFiles(join(webAppRoot, "src"), [".ts", ".tsx"]),
+    ...collectFiles(join(uiPackageRoot, "src"), [".ts", ".tsx"]),
+  ];
+
+  it("has zero arbitrary-value utilities (bg-[..], p-[..], text-[..], duration-[..])", () => {
+    const violations: string[] = [];
+    for (const file of tsxFiles()) {
+      if (rel(file).startsWith("packages/ui/qa/")) continue;
+      for (const hit of findArbitraryValues(readFileSync(file, "utf8"))) {
+        violations.push(`${rel(file)}: ${hit}`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("has zero default Tailwind palette classes (silent no-ops after @theme wipe)", () => {
+    const violations: string[] = [];
+    for (const file of tsxFiles()) {
+      if (rel(file).startsWith("packages/ui/qa/")) continue;
+      for (const hit of findDefaultPaletteUsage(readFileSync(file, "utf8"))) {
+        violations.push(`${rel(file)}: ${hit}`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("has zero default Tailwind namespace utilities (wiped namespaces cannot be reached for)", () => {
+    const violations: string[] = [];
+    for (const file of tsxFiles()) {
+      if (rel(file).startsWith("packages/ui/qa/")) continue;
+      for (const hit of findDefaultNamespaceUsage(readFileSync(file, "utf8"))) {
+        violations.push(`${rel(file)}: ${hit}`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("has zero `transition: all` in committed CSS (DESIGN.md §6.1 property allow-list)", () => {
+    const cssFiles = [
+      ...collectFiles(join(uiPackageRoot, "src"), [".css"]),
+      ...collectFiles(join(webAppRoot, "src"), [".css"]),
+    ];
+    const violations: string[] = [];
+    for (const file of cssFiles) {
+      for (const hit of findTransitionAll(readFileSync(file, "utf8"))) {
+        violations.push(`${rel(file)}: ${hit}`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("has zero foreign icon families and zero emojis in component source", () => {
+    const violations: string[] = [];
+    for (const file of tsxFiles()) {
+      if (rel(file).startsWith("packages/ui/qa/")) continue;
+      const source = readFileSync(file, "utf8");
+      for (const hit of findForeignIconImports(source)) {
+        violations.push(`${rel(file)}: foreign icon family ${hit}`);
+      }
+      for (const hit of findEmoji(source)) {
+        violations.push(`${rel(file)}: emoji ${hit}`);
+      }
     }
     expect(violations).toEqual([]);
   });
@@ -219,12 +455,47 @@ describe("B1 design brief reconciliation", () => {
     const brief = readFileSync(briefPath, "utf8");
     expect(brief).toContain("Labpics ID — Product Design Brief (v2)");
     expect(brief).not.toContain("Маркер-плейсхолдер");
-    // All four surfaces present (51 screens: A15/B10/C18/D8).
-    for (const id of ["A15", "B10", "C18", "D8"]) {
-      expect(brief).toContain(`#### ${id}`);
-    }
     // State contract present.
     expect(brief).toContain("## 5. State contract");
+  });
+
+  it("contains every one of the 51 screens individually (A1–A15, B1–B10, C1–C18, D1–D8)", () => {
+    const brief = readFileSync(briefPath, "utf8");
+    const surfaces: Array<[string, number]> = [
+      ["A", 15],
+      ["B", 10],
+      ["C", 18],
+      ["D", 8],
+    ];
+    const missing: string[] = [];
+    for (const [prefix, count] of surfaces) {
+      for (let n = 1; n <= count; n++) {
+        // Screen headings are `#### A1. Title` — the dot prevents A1 matching A10.
+        if (!brief.includes(`#### ${prefix}${n}.`)) missing.push(`${prefix}${n}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("every component the 51 screens reference is declared in the DESIGN.md inventory", () => {
+    // Self-maintaining oracle: component names are EXTRACTED from the brief's
+    // per-screen `C:` lines at test time, so adding a screen or a component
+    // to the brief automatically extends the reconciliation surface. Deleting
+    // a name from DESIGN.md §5 goes RED.
+    const brief = readFileSync(briefPath, "utf8");
+    const design = readFileSync(designPath, "utf8");
+    const referenced = new Set<string>();
+    for (const line of brief.split("\n")) {
+      if (!/^\s*-\s*\*\*C:?\*\*/.test(line)) continue;
+      for (const m of line.matchAll(/`([A-Z][A-Za-z0-9]*)/g)) {
+        const name = m[1];
+        if (name !== undefined) referenced.add(name);
+      }
+    }
+    // Sanity: the extraction itself must not be vacuous.
+    expect(referenced.size).toBeGreaterThan(100);
+    const missing = [...referenced].filter((name) => !design.includes(`\`${name}\``));
+    expect(missing).toEqual([]);
   });
 
   it("DESIGN.md exists with all 7 sections as real headings", () => {

@@ -3,33 +3,54 @@
 
 /*
  * Tailwind v4 theme wired to the DESIGN.md tokens (packages/ui/src/tokens.css).
- * Components use Tailwind utilities (bg-surface, text-label-p, ...) which
- * resolve to var(--lab-*) — no raw values enter component code. `inline` keeps
- * utilities pointing at the live custom properties so [data-theme] and
- * prefers-color-scheme switching work without re-generation.
+ * Every namespace a component can reach is either wiped (`--x-*: initial`) or
+ * redefined from a --lab-* token, so a utility class that is not traced to the
+ * design system simply does not exist (and the QA rubric scans TSX source for
+ * attempts to use one). `inline` keeps utilities pointing at the live custom
+ * properties so [data-theme] and prefers-color-scheme switching work without
+ * re-generation.
  */
 @theme inline {
   --font-sans: var(--lab-font-display);
   --font-mono: var(--lab-font-mono);
 
-  /* Typography scale → text-display/h1/h2/h3/body/small/mono-size utilities.
-   * Tailwind default text-* sizes stay available but the semantic steps are
-   * the documented scale (DESIGN.md §3). */
+  /* Typography roles (DESIGN.md §3.2): each text-* utility carries the role's
+   * full decision — size × line box × weight × tracking — so components never
+   * re-specify weight or letter-spacing for a role. */
   --text-*: initial;
   --text-display: var(--lab-text-display);
   --text-display--line-height: var(--lab-text-display-lh);
+  --text-display--font-weight: var(--lab-text-display-weight);
+  --text-display--letter-spacing: var(--lab-text-display-tracking);
   --text-h1: var(--lab-text-h1);
   --text-h1--line-height: var(--lab-text-h1-lh);
+  --text-h1--font-weight: var(--lab-text-h1-weight);
+  --text-h1--letter-spacing: var(--lab-text-h1-tracking);
   --text-h2: var(--lab-text-h2);
   --text-h2--line-height: var(--lab-text-h2-lh);
+  --text-h2--font-weight: var(--lab-text-h2-weight);
+  --text-h2--letter-spacing: var(--lab-text-h2-tracking);
   --text-h3: var(--lab-text-h3);
   --text-h3--line-height: var(--lab-text-h3-lh);
+  --text-h3--font-weight: var(--lab-text-h3-weight);
+  --text-h3--letter-spacing: var(--lab-text-h3-tracking);
   --text-body: var(--lab-text-body);
   --text-body--line-height: var(--lab-text-body-lh);
+  --text-body--font-weight: var(--lab-text-body-weight);
   --text-small: var(--lab-text-small);
   --text-small--line-height: var(--lab-text-small-lh);
+  --text-small--font-weight: var(--lab-text-small-weight);
+  --text-label: var(--lab-text-label);
+  --text-label--line-height: var(--lab-text-label-lh);
+  --text-label--font-weight: var(--lab-text-label-weight);
+  --text-caps: var(--lab-text-caps);
+  --text-caps--line-height: var(--lab-text-caps-lh);
+  --text-caps--font-weight: var(--lab-text-caps-weight);
+  --text-caps--letter-spacing: var(--lab-text-caps-tracking);
   --text-mono-size: var(--lab-text-mono);
   --text-mono-size--line-height: var(--lab-text-mono-lh);
+  --text-input: var(--lab-text-input);
+  --text-input--line-height: var(--lab-text-input-lh);
 
   --color-*: initial;
   --color-surface: var(--lab-bg-primary);
@@ -57,14 +78,64 @@
   --color-hairline: var(--lab-border-hairline);
   --color-border-strong: var(--lab-border-strong);
 
+  /* Spacing (DESIGN.md §4): the numeric multiplier scale is disabled — only
+   * the eight lab steps and the touch-target size exist, named after their
+   * pixel value (p-lab-16 = 16px). An off-scale gap is impossible to write. */
+  --spacing: initial;
+  --spacing-*: initial;
+  --spacing-lab-4: var(--lab-space-4);
+  --spacing-lab-8: var(--lab-space-8);
+  --spacing-lab-12: var(--lab-space-12);
+  --spacing-lab-16: var(--lab-space-16);
+  --spacing-lab-24: var(--lab-space-24);
+  --spacing-lab-32: var(--lab-space-32);
+  --spacing-lab-48: var(--lab-space-48);
+  --spacing-lab-64: var(--lab-space-64);
+  --spacing-touch: var(--lab-size-touch);
+
+  /* Containers (DESIGN.md §4 shell maxima + §3.3 measure). */
+  --container-*: initial;
+  --container-auth: var(--lab-shell-auth);
+  --container-content: var(--lab-shell-content);
+  --container-list: var(--lab-shell-list);
+  --container-measure: var(--lab-measure);
+
+  /* Weights: only the four lab weights exist (font-regular/medium/semibold/
+   * bold); font-light, font-black etc. are not generated. */
+  --font-weight-*: initial;
+  --font-weight-regular: var(--lab-weight-regular);
+  --font-weight-medium: var(--lab-weight-medium);
+  --font-weight-semibold: var(--lab-weight-semibold);
+  --font-weight-bold: var(--lab-weight-bold);
+
+  /* Tracking lives inside the type roles (§3.2); the only standalone tracking
+   * utility is the caps kicker. tracking-tight/widest do not exist. */
+  --tracking-*: initial;
+  --tracking-caps: var(--lab-text-caps-tracking);
+
+  --radius-*: initial;
   --radius-sm: var(--lab-radius-sm);
   --radius-md: var(--lab-radius-md);
   --radius-lg: var(--lab-radius-lg);
   --radius-pill: var(--lab-radius-pill);
 
+  --shadow-*: initial;
   --shadow-1: var(--lab-shadow-1);
   --shadow-2: var(--lab-shadow-2);
   --shadow-3: var(--lab-shadow-3);
+  --shadow-focus: var(--lab-shadow-focus);
+
+  /* Motion: only the named lab easings exist; duration comes from
+   * duration-(--lab-motion-*) or the transition-controls utility. */
+  --ease-*: initial;
+  --ease-out: var(--lab-ease-out);
+  --ease-linear: var(--lab-ease-linear);
+
+  --animate-*: initial;
+
+  --blur-*: initial;
+  --perspective-*: initial;
+  --aspect-*: initial;
 }
 
 /*
@@ -77,4 +148,33 @@
   --breakpoint-*: initial;
   --breakpoint-sm: 40rem;
   --breakpoint-lg: 64rem;
+}
+
+/*
+ * State-change transition (DESIGN.md §6.1): the ONLY legal transition
+ * shorthand for interactive controls. Explicit property allow-list —
+ * `transition: all` and the Tailwind transition-all/colors defaults are
+ * forbidden by the QA rubric because they animate unlisted properties and
+ * read default duration tokens instead of --lab-motion-*.
+ */
+@utility transition-controls {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow,
+    transform;
+  transition-duration: var(--lab-motion-instant);
+  transition-timing-function: var(--lab-ease-out);
+}
+
+/* Press feedback (DESIGN.md §6.2): scale 0.97, collapses to 1 under
+ * prefers-reduced-motion via the token itself. */
+@utility scale-press {
+  transform: scale(var(--lab-press-scale));
+}
+
+/* Opacity roles (DESIGN.md §6.3): numeric opacity-N utilities are not part of
+ * the system — disabled and inactive are the only two legal strengths. */
+@utility opacity-disabled {
+  opacity: var(--lab-opacity-disabled);
+}
+@utility opacity-inactive {
+  opacity: var(--lab-opacity-inactive);
 }

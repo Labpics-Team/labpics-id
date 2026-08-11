@@ -82,7 +82,7 @@ All tokens are **semantic**, referencing `labui`/`lab-colors` primitives. UI cod
 
 ### 2.1 Color roles
 
-Base palette from `lab-colors` (`@labpics/colors`): LCS perceptual space, 4 themes (light/dark × IC), continuous curves, 36 label roles → compacted to **P/S/T/Q** per surface (per labui ADR), 10 accents (5 sentiments + teal/mint/indigo/purple/pink).
+Base palette from `lab-colors` (`@labpics/colors`): LCS perceptual space, 4 themes (light/dark × IC), continuous curves, 36 label roles → compacted to **P/S/T/Q** per surface (per labui ADR). The upstream system ships 10 accent families (5 sentiments + 5 decorative hues); **Labpics ID adopts only the 4 sentiments plus the Labpics Blue signal family** — the decorative accent hues are explicitly excluded from this product (QA rule V1 §9.8: no stray accent hue anywhere, in either theme).
 
 **Signal accent = Labpics Blue.** Brand #007AFF anchors a Labpics Blue accent family in `lab-colors` (perceptual curve, not a raw hex in code — the LCS solver derives light/dark theme variants from the brand anchor with the label solved per surface). #007AFF itself is the *brand source value*; runtime uses the solved `--lab-*` tokens.
 

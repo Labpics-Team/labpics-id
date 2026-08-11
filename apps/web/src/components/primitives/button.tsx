@@ -7,8 +7,18 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "ghost";
 }
 
+/*
+ * Every class below traces to a DESIGN.md token: spacing = --lab-space-*
+ * (px-lab-16), size = --lab-size-touch (min-h-touch), type role = --lab-text-
+ * label (text-label carries size + weight 500 + tracking), transition =
+ * transition-controls (explicit property allow-list + --lab-motion-instant),
+ * press = scale-press (--lab-press-scale 0.97), focus = 2px outline in
+ * --lab-focus-color with 2px offset, disabled = --lab-opacity-disabled.
+ * Default Tailwind namespaces are wiped in globals.css, so an untraced
+ * utility would not compile to anything.
+ */
 const BASE_CLASSES =
-  "inline-flex min-h-11 items-center justify-center rounded-md px-4 text-small font-medium transition-colors duration-(--lab-motion-instant) ease-(--lab-ease-out) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50";
+  "inline-flex min-h-touch items-center justify-center rounded-md px-lab-16 text-label transition-controls active:scale-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-disabled disabled:cursor-not-allowed";
 
 const VARIANT_CLASSES: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary: "bg-accent-strong text-on-accent hover:bg-accent-hover",
