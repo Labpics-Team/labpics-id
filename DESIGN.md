@@ -29,8 +29,8 @@ Verified against the public npm registry on 2026-08-11 (this repo is public, MIT
 | Package | Status | Decision |
 |---|---|---|
 | `@labpics/colors` (lab-colors) | **Published**, v0.10.0, MIT | Not imported at runtime for this gate. It is a WASM engine that resolves `--lab-*` variables from a runtime `ThemeConfig` we do not ship yet. We replicate its output contract (`--lab-*` semantic roles, perceptual accent family solved per theme) as **static CSS custom properties** in `packages/ui/src/tokens.css`, with AA compliance proven by our own programmatic contrast assertions instead of the solver. Adopting the runtime engine later is a reversible swap: consumers already read only `var(--lab-*)`. |
-| `labui` | **Not published** (npm 404) | Own tokens + own primitives replicate the Labpics look. Token names follow the labui contract documented in the brief so a future migration is a rename-free adoption. |
-| `lab-icons` | **Not published** (npm 404) | Icon family decision in §5. |
+| `labui` | **Not published** (npm 404; GitHub repo private) | Own tokens + own primitives replicate the Labpics look. Token names follow the labui contract documented in the brief so a future migration is a rename-free adoption. |
+| `@labpics/icons` (lab-icons) | **Published**, v0.2.0, MIT — 444 SVG (Filled + Outline), tree-shakeable ESM | Adopted as the icon family (§5). |
 | `@labpics/motion` | **Published**, v0.3.0, MIT | Timing tokens in §6 mirror its character presets (instant/calm/ceremony); the runtime engine may be adopted by ch08+ without token changes. |
 
 ---
@@ -135,7 +135,7 @@ Only the components below may be built (ch08/ch09 scope). Anything else requires
 
 **Composition:** `Card` (max one primary card per view — no card soup), `GroupedList`, `Ledger` (numbered record rows: audit, sessions, grants, webhooks, factors), `DataTable` (`th scope`, `aria-sort`, →cards on mobile), `Tabs`, `Stepper`, `Dialog`/`ConfirmDialog` (focus trap, escape, restore focus), `Drawer`, `BottomSheet`, `Toast`/`StatusBanner` (`role=status`/`role=alert`), `SkeletonBlock` (layout-reserving), `CopyField`/`CodeBlock` (mono, copy with `aria-live` feedback), `ShowOnceGate` (secrets/backup codes), `EmptyState` (teaches next action), `Countdown` (`aria-live=polite`), `FilterBar`, `Pagination`, `SaveBar`.
 
-**Iconography — decision: Radix Icons** (`@radix-ui/react-icons`, MIT). One family, consistent 15px-grid stroke, no emojis as icons ever. Rationale: the scaffold already depends on Radix primitives; Radix Icons keep one vendor, MIT license, tree-shakeable. Sizes via `--lab-icon-sm/md/lg` (16/20/24). Icons never carry meaning by color alone. If `lab-icons` is published later, migration is a component-level swap behind the same size tokens.
+**Iconography — decision: `@labpics/icons`** (lab-icons, v0.2.0, MIT, 444 SVG Filled + Outline, tree-shakeable ESM — published by the studio, verified on npm 2026-08-11). One family, no emojis as icons ever, Outline as the default working style with Filled reserved for active/selected states. Rationale: it is the brand-native family the brief targets (SF-Symbols-competing), it is publicly licensed for this repo, and it keeps the icon language identical to the rest of the Labpics estate — a third-party set (Radix/Phosphor) would be a second visual voice. Sizes via `--lab-icon-sm/md/lg` (16/20/24). Icons never carry meaning by color alone. The dependency is added in ch08 with the first icon-consuming component, not in this tokens-only PR.
 
 ---
 

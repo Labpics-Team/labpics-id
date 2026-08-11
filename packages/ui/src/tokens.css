@@ -110,7 +110,7 @@
   /* ---- Hairline (the only separator; no grey boxes) ---- */
   --lab-hairline: 1px solid var(--lab-border-hairline);
 
-  /* ---- Iconography (Radix Icons; one family, no emojis) ---- */
+  /* ---- Iconography (@labpics/icons; one family, no emojis) ---- */
   --lab-icon-sm: 16px;
   --lab-icon-md: 20px;
   --lab-icon-lg: 24px;
