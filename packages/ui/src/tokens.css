@@ -1,21 +1,324 @@
 /*
- * Labpics ID design tokens — PLACEHOLDER ONLY.
+ * Labpics ID design tokens — source of truth for all visual values.
  *
- * The final token set is owned by the ch01-design-system task and its
- * DESIGN.md brief (docs/design/DESIGN-BRIEF.md). Until that brief is
- * committed, these variables exist to prove the wiring
- * (packages/ui → apps/web via `@labpics/ui/tokens.css`) and MUST NOT be
- * treated as final values or used by production components.
- *
- * TODO(ch01-design-system): replace placeholders with tokens consumed from
- * DESIGN.md (color primitives, semantic colors, typography, spacing, radii,
- * shadows, motion).
+ * Contract (DESIGN.md at repo root):
+ *   - Components read ONLY var(--lab-*) — raw hex/rgb/hsl in component code is
+ *     a token-purity violation (enforced by packages/ui/qa/qa-rubric.test.ts).
+ *   - This file and DESIGN.md are the only places raw color values may appear.
+ *   - Base colors are declared; interaction colors are DERIVED with color-mix
+ *     from the bases (hover = 12% toward black, tints = 10% sentiment over the
+ *     page bg, disabled = tertiary label at 60% strength). The QA rubric
+ *     resolves every color-mix()/var() chain and asserts WCAG 2.2 AA for each
+ *     pair in DESIGN.md §2 in BOTH themes, plus OKLCH hue stability (<10° per
+ *     accent family).
+ *   - Accent = Labpics Blue, anchored at brand #007AFF (lab.pics/brand).
+ *   - Dark theme: [data-theme="dark"] wins; otherwise prefers-color-scheme
+ *     applies. The two dark blocks are asserted byte-identical by the rubric
+ *     to prevent drift. Dark redefines BASES; deriveds recompute automatically
+ *     — except --lab-accent-text and the shadow alphas, which are re-measured
+ *     for dark on purpose (dark is a separate design, not an inversion).
  */
+
 :root {
-  /* TODO(DESIGN.md): color primitives */
-  /* TODO(DESIGN.md): semantic colors */
-  /* TODO(DESIGN.md): typography scale */
-  /* TODO(DESIGN.md): spacing scale */
-  /* TODO(DESIGN.md): radii & shadows */
-  /* TODO(DESIGN.md): motion durations & easings */
+  color-scheme: light;
+
+  /* ---- Color bases: backgrounds (light) ---- */
+  --lab-bg-primary: #ffffff;
+  --lab-bg-secondary: #f7f8fa;
+  --lab-bg-tertiary: #eff1f4;
+  --lab-bg-grouped: #f2f4f7;
+  --lab-bg-grouped-row: #ffffff;
+
+  /* ---- Color bases: labels (light) ---- */
+  --lab-label-p: #16181d;
+  --lab-label-s: #4a5260;
+  --lab-label-t: #5c6675;
+
+  /* Derived: disabled = tertiary label at 60% strength over the page bg
+   * (WCAG 1.4.3 exempts inactive UI). Not hand-picked; recomputes per theme. */
+  --lab-label-q: color-mix(in srgb, var(--lab-label-t) 60%, var(--lab-bg-primary));
+
+  /* ---- Color bases: Labpics Blue accent family (light) ----
+   * anchor — brand #007AFF: focus ring, active nav, live/health, large text.
+   * strong — contrast-solved member: filled primary action bg, accent text.
+   */
+  --lab-accent-blue: #007aff;
+  --lab-accent-blue-strong: #0062cc;
+
+  /* Derived: pressing/hovering a filled action adds 12% black to its base.
+   * One law for every interactive fill; never a hand-picked third blue. */
+  --lab-accent-blue-hover: color-mix(in srgb, var(--lab-accent-blue-strong) 88%, #000000);
+
+  /* Light: accent-colored text IS the strong member (4.5:1 on light bgs).
+   * Dark re-measures this role — see the dark block. */
+  --lab-accent-text: var(--lab-accent-blue-strong);
+  --lab-on-accent: #ffffff;
+
+  /* ---- Color bases: sentiments (light; text/icon roles) ---- */
+  --lab-sentiment-success: #166534;
+  --lab-sentiment-warning: #92400e;
+  --lab-sentiment-error: #b91c1c;
+  --lab-sentiment-info: #075985;
+
+  /* Derived: alert/badge tints = 10% sentiment over the page bg.
+   * One formula, both themes; each holds ≥4.5:1 under its own sentiment. */
+  --lab-sentiment-success-bg: color-mix(
+    in srgb,
+    var(--lab-sentiment-success) 10%,
+    var(--lab-bg-primary)
+  );
+  --lab-sentiment-warning-bg: color-mix(
+    in srgb,
+    var(--lab-sentiment-warning) 10%,
+    var(--lab-bg-primary)
+  );
+  --lab-sentiment-error-bg: color-mix(
+    in srgb,
+    var(--lab-sentiment-error) 10%,
+    var(--lab-bg-primary)
+  );
+  --lab-sentiment-info-bg: color-mix(in srgb, var(--lab-sentiment-info) 10%, var(--lab-bg-primary));
+
+  /* ---- Color bases: borders (light) ---- */
+  --lab-border-hairline: #e3e6eb; /* decorative separator — no AA requirement */
+  --lab-border-strong: #6b7484; /* input/control borders — must hold 3:1 */
+
+  /* ---- Focus (2px outline + 2px gap; never outline:none without it) ---- */
+  --lab-focus-color: var(--lab-accent-blue);
+  --lab-focus-width: 2px;
+  --lab-focus-gap: 2px;
+  /* Dedicated soft focus-ring shadow for inputs (outline stays the default). */
+  --lab-shadow-focus: 0 0 0 4px color-mix(in srgb, var(--lab-focus-color) 30%, transparent);
+
+  /* ---- Typography ----
+   * Scale law: major third (×1.25) from base 15px, snapped to the nearest
+   * even px so every role's line box (size × leading) is a 4px multiple:
+   *   15 ×1.25 = 18.75 → 18;  18 ×1.25 = 22.5 → 22;
+   *   22 ×1.25 = 27.5  → 28;  28 ×1.25 = 35   → 36.
+   * 13px (small/label/caps/mono) is the persistent-UI floor.
+   * Leading law: line box = smallest 4px multiple ≥ size × target
+   * (headings target 1.15–1.35, body 1.5–1.6); stored as calc(box / size)
+   * so the derivation is visible and machine-checkable (rubric T7).
+   */
+  --lab-font-display: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
+  --lab-font-mono: var(--font-geist-mono, ui-monospace, monospace);
+
+  --lab-weight-regular: 400;
+  --lab-weight-medium: 500;
+  --lab-weight-semibold: 600;
+  --lab-weight-bold: 700; /* inline emphasis only — no role uses it */
+
+  --lab-text-display: 2.25rem; /* 36px, line box 44px */
+  --lab-text-display-lh: calc(44 / 36);
+  --lab-text-display-weight: var(--lab-weight-semibold);
+  --lab-text-display-tracking: -0.02em;
+
+  --lab-text-h1: 1.75rem; /* 28px, line box 36px */
+  --lab-text-h1-lh: calc(36 / 28);
+  --lab-text-h1-weight: var(--lab-weight-semibold);
+  --lab-text-h1-tracking: -0.015em;
+
+  --lab-text-h2: 1.375rem; /* 22px, line box 28px */
+  --lab-text-h2-lh: calc(28 / 22);
+  --lab-text-h2-weight: var(--lab-weight-semibold);
+  --lab-text-h2-tracking: -0.01em;
+
+  --lab-text-h3: 1.125rem; /* 18px, line box 24px */
+  --lab-text-h3-lh: calc(24 / 18);
+  --lab-text-h3-weight: var(--lab-weight-semibold);
+  --lab-text-h3-tracking: -0.005em;
+
+  --lab-text-body: 0.9375rem; /* 15px, line box 24px */
+  --lab-text-body-lh: calc(24 / 15);
+  --lab-text-body-weight: var(--lab-weight-regular);
+  --lab-text-body-tracking: 0em;
+
+  --lab-text-small: 0.8125rem; /* 13px, line box 20px — meta prose */
+  --lab-text-small-lh: calc(20 / 13);
+  --lab-text-small-weight: var(--lab-weight-regular);
+  --lab-text-small-tracking: 0em;
+
+  --lab-text-label: 0.8125rem; /* 13px, line box 20px — control labels */
+  --lab-text-label-lh: calc(20 / 13);
+  --lab-text-label-weight: var(--lab-weight-medium);
+  --lab-text-label-tracking: 0em;
+
+  --lab-text-caps: 0.8125rem; /* 13px, line box 20px — uppercase kickers */
+  --lab-text-caps-lh: calc(20 / 13);
+  --lab-text-caps-weight: var(--lab-weight-medium);
+  --lab-text-caps-tracking: 0.08em;
+
+  --lab-text-mono: 0.8125rem; /* 13px, line box 20px — identity data */
+  --lab-text-mono-lh: calc(20 / 13);
+  --lab-text-mono-weight: var(--lab-weight-regular);
+  --lab-text-mono-tracking: 0em;
+
+  --lab-text-input: 1rem; /* 16px, line box 24px — iOS zoom floor (WCAG/UX) */
+  --lab-text-input-lh: calc(24 / 16);
+  --lab-text-input-weight: var(--lab-weight-regular);
+  --lab-text-input-tracking: 0em;
+
+  /* Measure: body copy wraps at 65ch (60–75ch window). */
+  --lab-measure: 65ch;
+
+  /* ---- Spacing (4px grid — the only permitted gaps) ---- */
+  --lab-space-4: 0.25rem;
+  --lab-space-8: 0.5rem;
+  --lab-space-12: 0.75rem;
+  --lab-space-16: 1rem;
+  --lab-space-24: 1.5rem;
+  --lab-space-32: 2rem;
+  --lab-space-48: 3rem;
+  --lab-space-64: 4rem;
+
+  /* ---- Sizes ---- */
+  --lab-size-touch: 2.75rem; /* 44px minimum touch target (WCAG 2.5.8 pref) */
+  --lab-shell-auth: 27.5rem; /* 440px auth card max */
+  --lab-shell-content: 45rem; /* 720px settings content max */
+  --lab-shell-list: 68.75rem; /* 1100px list surfaces max */
+
+  /* ---- Radius (roles in DESIGN.md §7; concentric rule outer=inner+padding) ---- */
+  --lab-radius-sm: 4px; /* checks, chips, inline code */
+  --lab-radius-md: 8px; /* buttons, inputs */
+  --lab-radius-lg: 12px; /* cards, dialogs, sheets */
+  --lab-radius-pill: 999px; /* badges and pill buttons only */
+
+  /* ---- Elevation: every layer is ONE shadow color at an alpha ----
+   * (cards use hairline, not shadow — see DESIGN.md §7). */
+  --lab-color-shadow: #16181d;
+  --lab-shadow-0: none;
+  --lab-shadow-1: 0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 6%, transparent);
+  --lab-shadow-2:
+    0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 6%, transparent),
+    0 4px 12px -2px color-mix(in srgb, var(--lab-color-shadow) 10%, transparent);
+  --lab-shadow-3:
+    0 2px 8px -2px color-mix(in srgb, var(--lab-color-shadow) 8%, transparent),
+    0 12px 32px -4px color-mix(in srgb, var(--lab-color-shadow) 16%, transparent);
+
+  /* ---- Hairline (the only separator; no grey boxes) ---- */
+  --lab-hairline: 1px solid var(--lab-border-hairline);
+
+  /* ---- Iconography (@labpics/icons; one family, no emojis) ---- */
+  --lab-icon-sm: 16px;
+  --lab-icon-md: 20px;
+  --lab-icon-lg: 24px;
+
+  /* ---- Opacity ---- */
+  --lab-opacity-disabled: 0.5;
+  --lab-opacity-inactive: 0.62;
+
+  /* ---- Motion characters (@labpics/motion preset alignment) ---- */
+  --lab-motion-instant: 80ms;
+  --lab-motion-calm: 200ms;
+  --lab-motion-ceremony: 400ms;
+  --lab-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --lab-ease-linear: linear;
+  --lab-press-scale: 0.97; /* active press; never below 0.95 */
+
+  /* ---- Z ladder ---- */
+  --lab-z-sticky: 100;
+  --lab-z-dialog: 1000;
+  --lab-z-popover: 1100;
+
+  /* ---- Breakpoints (documentation tokens; media queries cannot read
+   *      custom properties — apps/web @theme declares the same min-width
+   *      values statically, and the QA rubric asserts they stay in sync).
+   *      Contract (brief §6.1): <640px single column; 640–1024px mid;
+   *      >1024px full shell. ---- */
+  --bp-sm: 40rem; /* 640px  min-width — enter mid layout */
+  --bp-lg: 64rem; /* 1024px min-width — enter full shell */
+}
+
+/*
+ * Dark theme. Two entry points, byte-identical bodies (rubric-enforced):
+ *   1. explicit user choice [data-theme="dark"];
+ *   2. OS preference when no explicit choice was made.
+ * Only BASES are redefined; derived tokens recompute from them. The two
+ * exceptions are re-measured on purpose: --lab-accent-text (the strong fill
+ * fails 4.5:1 as text on dark, so dark text = anchor lightened 34% toward
+ * white) and the shadow alphas (dark needs denser shadows to read at all).
+ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --lab-bg-primary: #0c0e13;
+  --lab-bg-secondary: #14171e;
+  --lab-bg-tertiary: #1c2029;
+  --lab-bg-grouped: #11141a;
+  --lab-bg-grouped-row: #14171e;
+
+  --lab-label-p: #e9ecf2;
+  --lab-label-s: #a8b0bd;
+  --lab-label-t: #8a93a3;
+
+  --lab-accent-blue-strong: #0f6fdd;
+  --lab-accent-text: color-mix(in srgb, var(--lab-accent-blue) 66%, #ffffff);
+
+  --lab-sentiment-success: #4ade80;
+  --lab-sentiment-warning: #fbbf24;
+  --lab-sentiment-error: #f87171;
+  --lab-sentiment-info: #38bdf8;
+
+  --lab-border-hairline: #262b35;
+  --lab-border-strong: #7e8798;
+
+  --lab-color-shadow: #000000;
+  --lab-shadow-1: 0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 40%, transparent);
+  --lab-shadow-2:
+    0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 30%, transparent),
+    0 4px 12px -2px color-mix(in srgb, var(--lab-color-shadow) 50%, transparent);
+  --lab-shadow-3:
+    0 2px 8px -2px color-mix(in srgb, var(--lab-color-shadow) 30%, transparent),
+    0 12px 32px -4px color-mix(in srgb, var(--lab-color-shadow) 60%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --lab-bg-primary: #0c0e13;
+    --lab-bg-secondary: #14171e;
+    --lab-bg-tertiary: #1c2029;
+    --lab-bg-grouped: #11141a;
+    --lab-bg-grouped-row: #14171e;
+
+    --lab-label-p: #e9ecf2;
+    --lab-label-s: #a8b0bd;
+    --lab-label-t: #8a93a3;
+
+    --lab-accent-blue-strong: #0f6fdd;
+    --lab-accent-text: color-mix(in srgb, var(--lab-accent-blue) 66%, #ffffff);
+
+    --lab-sentiment-success: #4ade80;
+    --lab-sentiment-warning: #fbbf24;
+    --lab-sentiment-error: #f87171;
+    --lab-sentiment-info: #38bdf8;
+
+    --lab-border-hairline: #262b35;
+    --lab-border-strong: #7e8798;
+
+    --lab-color-shadow: #000000;
+    --lab-shadow-1: 0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 40%, transparent);
+    --lab-shadow-2:
+      0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 30%, transparent),
+      0 4px 12px -2px color-mix(in srgb, var(--lab-color-shadow) 50%, transparent);
+    --lab-shadow-3:
+      0 2px 8px -2px color-mix(in srgb, var(--lab-color-shadow) 30%, transparent),
+      0 12px 32px -4px color-mix(in srgb, var(--lab-color-shadow) 60%, transparent);
+  }
+}
+
+/*
+ * Reduced motion = character switch (ceremony→calm→instant→static),
+ * per @labpics/motion invariant. Durations collapse; easing simplifies;
+ * the press scale becomes a pure state change (static cues remain).
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --lab-motion-instant: 0ms;
+    --lab-motion-calm: 80ms;
+    --lab-motion-ceremony: 80ms;
+    --lab-ease-out: linear;
+    --lab-press-scale: 1;
+  }
 }

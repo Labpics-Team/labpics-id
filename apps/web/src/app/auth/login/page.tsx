@@ -7,10 +7,10 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border border-neutral-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Sign in</h1>
-        <p className="text-sm text-neutral-600">
+    <main className="flex min-h-screen items-center justify-center px-lab-24">
+      <div className="flex w-full max-w-auth flex-col gap-lab-24 rounded-lg border border-hairline bg-surface-2 p-lab-32">
+        <h1 className="text-h2 text-label-p">Sign in</h1>
+        <p className="text-small text-label-s">
           Placeholder login page — real authentication lands with the auth chapter.
         </p>
         <Button asChild className="w-full">
