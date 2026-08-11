@@ -1,4 +1,5 @@
 import { createApp } from "./app";
+import { createBetterAuthPort } from "./auth/better-auth.adapter";
 import { loadConfig } from "./config";
 import { createDatabaseConnection } from "./lib/db";
 import { createLogger } from "./lib/logger";
@@ -8,8 +9,20 @@ const logger = createLogger(config.logLevel);
 
 const database =
   config.databaseUrl !== undefined ? createDatabaseConnection(config.databaseUrl, logger) : null;
+if (config.authSecret === undefined) {
+  throw new Error(
+    "BETTER_AUTH_SECRET must be configured before composing the authentication adapter",
+  );
+}
+const auth = createBetterAuthPort({
+  runtime: config.nodeEnv,
+  persistence: config.authPersistence,
+  secret: config.authSecret,
+  baseUrl: config.authBaseUrl,
+  trustedOrigins: config.corsAllowedOrigins,
+});
 
-const app = createApp({ config, logger, database });
+const app = createApp({ config, logger, database, auth });
 
 const server = Bun.serve({
   hostname: config.host,
