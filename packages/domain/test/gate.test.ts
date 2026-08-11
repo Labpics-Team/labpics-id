@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const script = join(import.meta.dir, "..", "scripts", "check-domain-gate.mjs");
+const repositoryRoot = join(import.meta.dir, "..", "..", "..");
 
 describe("domain dependency gate", () => {
   it("passes on the current domain source", () => {
@@ -29,6 +30,21 @@ describe("domain dependency gate", () => {
       expect(res.status).toBe(1);
       const output = `${res.stdout}${res.stderr}`;
       expect(output).toContain(needle);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("propagates a hostile fixture failure through the root script", () => {
+    const dir = mkdtempSync(join(tmpdir(), "domain-gate-root-"));
+    try {
+      writeFileSync(join(dir, "bad.ts"), 'import { Hono } from "hono";\n');
+      const res = spawnSync("bun", ["run", "check:domain-gate", "--", dir], {
+        cwd: repositoryRoot,
+        encoding: "utf8",
+      });
+      expect(res.status).toBe(1);
+      expect(`${res.stdout}${res.stderr}`).toContain("hono");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
