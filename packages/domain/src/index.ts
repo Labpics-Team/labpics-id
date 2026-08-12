@@ -1,6 +1,7 @@
 export * from "./aggregates/product-access";
 export * from "./errors";
 export * from "./identity/contract";
+export * from "./identity/use-cases";
 export * from "./ports/audit-log";
 export * from "./ports/clock";
 export * from "./ports/identity";

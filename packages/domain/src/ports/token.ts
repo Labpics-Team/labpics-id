@@ -13,4 +13,5 @@ export interface IssuedToken {
 
 export interface TokenPort {
   issue(command: IssueTokenCommand): Promise<IssuedToken>;
+  digest(raw: string): Promise<string>;
 }
