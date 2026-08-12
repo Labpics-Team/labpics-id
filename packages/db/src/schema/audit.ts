@@ -28,8 +28,9 @@ export const auditEvents = pgTable(
 );
 
 /**
- * Transactional outbox for cross-context delivery (exactly-once semantics land
- * with the outbox chapter). Schema-only placeholder.
+ * Transactional outbox for at-least-once cross-context delivery. Dispatchers
+ * may redeliver, so consumers must deduplicate using an idempotency key carried
+ * in the envelope payload. Dispatcher processing lands with the outbox chapter.
  */
 export const outbox = pgTable(
   "outbox",

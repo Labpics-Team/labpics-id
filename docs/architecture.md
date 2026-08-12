@@ -71,7 +71,8 @@ apps/api ─┤        │
 
 - `packages/domain` не импортирует ничего внешнего (framework/db/http/node
   side-effects) — только чистый TypeScript.
-- `packages/db` зависит от `drizzle-orm`/`pg`, не от домена.
+- `packages/db` зависит от `drizzle-orm`/`pg` и реализует инфраструктурные порты
+  домена, включая Postgres `UnitOfWork`.
 - `apps/api` — единственный владелец HTTP-границы; импортирует домен только
   через порты (в будущих главах).
 - `packages/testkit` может зависеть от `db` (типы для фабрик); из `db` и `api`
@@ -98,6 +99,6 @@ apps/api ─┤        │
   adapter-neutral ports, durable store/JWKS и OIDF/contract gates ch03.
 - Аудит: реализация hash chain (алгоритм, canonical-сериализация).
 - Outbox: dispatcher/retries; at-least-once delivery и consumer dedup по
-  `idempotencyKey` (не недоказанный exactly-once claim).
+  `idempotencyKey`; более сильная гарантия доставки не заявляется.
 - RBAC: связывание member/role/permission и enforcement-модель.
 - UI: финальные токены из DESIGN.md (ch01-design-system).
