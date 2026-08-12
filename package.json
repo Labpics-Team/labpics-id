@@ -18,7 +18,7 @@
     "lint:fix": "biome check --write .",
     "build": "bun run --filter './apps/*' build && bun run --filter './packages/*' build",
     "test": "bun test --timeout 120000",
-    "check:domain-gate": "bun --cwd packages/domain run check:domain-gate",
+    "check:domain-gate": "bun run --cwd packages/domain check:domain-gate",
     "db:generate": "bun --cwd packages/db run db:generate",
     "db:migrate": "bun --cwd packages/db run db:migrate",
     "db:push": "bun --cwd packages/db run db:push",

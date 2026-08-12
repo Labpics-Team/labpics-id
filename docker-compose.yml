@@ -11,7 +11,7 @@ services:
     ports:
       # Host port 54310 is used because 5432/5433/55432 are occupied by other
       # Postgres instances on this machine (Labpics dev + spike containers).
-      - "54310:5432"
+      - "127.0.0.1:54310:5432"
     volumes:
       - labpics_id_pgdata:/var/lib/postgresql/data
     healthcheck:

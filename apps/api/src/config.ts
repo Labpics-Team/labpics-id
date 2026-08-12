@@ -13,8 +13,9 @@ export interface AppConfig {
   readonly host: string;
   readonly port: number;
   readonly databaseUrl: string | undefined;
-  readonly betterAuthSecret: string | undefined;
-  readonly betterAuthUrl: string | undefined;
+  readonly authSecret: string | undefined;
+  readonly authBaseUrl: string | undefined;
+  readonly authPersistence: "memory";
   readonly corsAllowedOrigins: readonly string[];
   readonly requestTimeoutMs: number;
   readonly logLevel: LogLevel;
@@ -46,8 +47,17 @@ function parsePositiveInt(value: string | undefined, name: string, fallback: num
   return parsed;
 }
 
-function parseList(value: string | undefined, fallback: readonly string[]): readonly string[] {
-  const raw = value === undefined || value.trim() === "" ? fallback.join(",") : value;
+const FALLBACK_SECRETS = new Set([
+  "dev-only-insecure-secret-change-me",
+  "replace-me-with-a-32-byte-random-secret",
+  "test-only-secret-with-at-least-32-characters",
+]);
+
+function parseCorsOrigins(value: string | undefined, nodeEnv: NodeEnv): readonly string[] {
+  if (nodeEnv === "production" && (value === undefined || value.trim() === "")) {
+    throw new ConfigError("CORS_ALLOWED_ORIGINS is required in production");
+  }
+  const raw = value === undefined || value.trim() === "" ? "http://localhost:3001" : value;
   const items = raw
     .split(",")
     .map((item) => item.trim())
@@ -55,18 +65,56 @@ function parseList(value: string | undefined, fallback: readonly string[]): read
   if (items.length === 0) {
     throw new ConfigError("At least one allowed CORS origin is required");
   }
-  return items;
+  const canonical = items.map((item) => {
+    if (item === "*") throw new ConfigError("Wildcard CORS origins are forbidden");
+    let url: URL;
+    try {
+      url = new URL(item);
+    } catch (error) {
+      if (error instanceof TypeError) throw new ConfigError(`Invalid CORS origin: "${item}"`);
+      throw error;
+    }
+    if (
+      (url.protocol !== "http:" && url.protocol !== "https:") ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.pathname !== "/" ||
+      url.search !== "" ||
+      url.hash !== "" ||
+      url.origin !== item
+    ) {
+      throw new ConfigError(`Invalid CORS origin: "${item}"`);
+    }
+    return url.origin;
+  });
+  if (new Set(canonical).size !== canonical.length) {
+    throw new ConfigError("Duplicate CORS origins are forbidden");
+  }
+  return canonical;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  const nodeEnv = parseEnum(env.NODE_ENV, NODE_ENVS, "NODE_ENV", "development");
+  const configuredSecret = env.BETTER_AUTH_SECRET?.trim();
+  const authSecret = configuredSecret === "" ? undefined : configuredSecret;
+  if (nodeEnv === "production" && authSecret === undefined) {
+    throw new ConfigError("BETTER_AUTH_SECRET is required in production");
+  }
+  if (authSecret !== undefined && authSecret.length < 32) {
+    throw new ConfigError("BETTER_AUTH_SECRET must contain at least 32 characters");
+  }
+  if (nodeEnv === "production" && authSecret !== undefined && FALLBACK_SECRETS.has(authSecret)) {
+    throw new ConfigError("BETTER_AUTH_SECRET must not use a known fallback value in production");
+  }
   return {
-    nodeEnv: parseEnum(env.NODE_ENV, NODE_ENVS, "NODE_ENV", "development"),
+    nodeEnv,
     host: env.HOST?.trim() !== "" ? (env.HOST ?? "0.0.0.0") : "0.0.0.0",
     port: parsePositiveInt(env.PORT, "PORT", 3000),
     databaseUrl: env.DATABASE_URL?.trim() === "" ? undefined : env.DATABASE_URL,
-    betterAuthSecret: env.BETTER_AUTH_SECRET?.trim() === "" ? undefined : env.BETTER_AUTH_SECRET,
-    betterAuthUrl: env.BETTER_AUTH_URL?.trim() === "" ? undefined : env.BETTER_AUTH_URL,
-    corsAllowedOrigins: parseList(env.CORS_ALLOWED_ORIGINS, ["http://localhost:3001"]),
+    authSecret,
+    authBaseUrl: env.BETTER_AUTH_URL?.trim() === "" ? undefined : env.BETTER_AUTH_URL,
+    authPersistence: "memory",
+    corsAllowedOrigins: parseCorsOrigins(env.CORS_ALLOWED_ORIGINS, nodeEnv),
     requestTimeoutMs: parsePositiveInt(env.REQUEST_TIMEOUT_MS, "REQUEST_TIMEOUT_MS", 10_000),
     logLevel: parseEnum(env.LOG_LEVEL, LOG_LEVELS, "LOG_LEVEL", "info"),
   };

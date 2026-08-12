@@ -1,9 +1,8 @@
-import { index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { users } from "./auth";
+import { foreignKey, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
- * Organization RBAC placeholders — schema-only until the organizations chapter.
- * Table names follow Better Auth's organization plugin where applicable.
+ * Platform-owned organization and RBAC placeholders.
+ * Identity subjects remain opaque here so provider persistence can evolve independently.
  */
 export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
@@ -25,7 +24,10 @@ export const role = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("role_organization_name_unique").on(table.organizationId, table.name)],
+  (table) => [
+    uniqueIndex("role_organization_name_unique").on(table.organizationId, table.name),
+    uniqueIndex("role_organization_id_unique").on(table.organizationId, table.id),
+  ],
 );
 
 export const permission = pgTable(
@@ -54,12 +56,17 @@ export const member = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    roleId: text("role_id").references(() => role.id, { onDelete: "set null" }),
+    userId: text("user_id").notNull(),
+    roleId: text("role_id"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
-  (table) => [index("member_organization_user_idx").on(table.organizationId, table.userId)],
+  (table) => [
+    uniqueIndex("member_organization_user_unique").on(table.organizationId, table.userId),
+    foreignKey({
+      columns: [table.organizationId, table.roleId],
+      foreignColumns: [role.organizationId, role.id],
+      name: "member_organization_role_fk",
+    }).onDelete("restrict"),
+  ],
 );

@@ -4,6 +4,8 @@
  * The domain emits audit facts through this port; the implementation owns the
  * append-only storage, the hash chain and the persistence details.
  */
+import type { TransactionContext } from "./unit-of-work";
+
 export interface AuditEntry {
   readonly actorId: string;
   readonly action: string;
@@ -15,5 +17,5 @@ export interface AuditEntry {
 }
 
 export interface AuditLogPort {
-  record(entry: AuditEntry): Promise<void>;
+  record(context: TransactionContext, entry: AuditEntry): Promise<void>;
 }

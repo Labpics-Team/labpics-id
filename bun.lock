@@ -80,6 +80,7 @@
       "name": "@labpics/db",
       "version": "0.1.0",
       "dependencies": {
+        "@labpics/domain": "0.1.0",
         "drizzle-orm": "0.45.2",
         "pg": "8.23.0",
       },

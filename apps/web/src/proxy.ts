@@ -6,12 +6,11 @@ const SESSION_COOKIE_NAME = "labpics_session";
 const LOGIN_PATH = "/auth/login";
 
 /**
- * Auth-aware routing at the edge.
+ * Navigation-only routing hint at the edge.
  *
  * NO database access here: the proxy runtime must stay dependency-free, so
- * session state is inferred from the presence of the session cookie only.
- * Anything under a non-public path without the cookie is redirected to the
- * login page.
+ * Cookie presence is untrusted and never authorizes protected data. Server/API
+ * handlers must verify the session independently before returning such data.
  */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -32,7 +31,9 @@ export function proxy(request: NextRequest) {
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
-  return NextResponse.next();
+  const response = NextResponse.next();
+  response.headers.set("x-labpics-navigation-hint", "cookie-present-unverified");
+  return response;
 }
 
 export const config = {

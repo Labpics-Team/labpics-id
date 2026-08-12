@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createBetterAuthPort } from "./auth/better-auth.adapter";
+import type { AuthPort } from "./auth/port";
 import type { AppConfig } from "./config";
 import type { DatabaseConnection } from "./lib/db";
 import type { Logger } from "./lib/logger";
@@ -17,10 +17,11 @@ export interface AppDeps {
   readonly config: AppConfig;
   readonly logger: Logger;
   readonly database: DatabaseConnection | null;
+  readonly auth: AuthPort;
 }
 
 export function createApp(deps: AppDeps) {
-  const { config, logger, database } = deps;
+  const { config, logger, database, auth } = deps;
   const app = new Hono<{ Variables: AppVariables }>();
 
   app.use("*", requestId());
@@ -33,15 +34,7 @@ export function createApp(deps: AppDeps) {
   app.route("/", readyRoutes(database, logger));
   app.route("/", v1Routes());
 
-  // Better Auth is mounted behind a port wrapper: better-auth is imported only
-  // in src/auth/better-auth.adapter.ts, lazily. `app.all` (not `mount`) is used
-  // so the handler receives the original request with the full `/auth/*` path.
-  const authPort = createBetterAuthPort({
-    secret: config.betterAuthSecret,
-    baseUrl: config.betterAuthUrl,
-    trustedOrigins: config.corsAllowedOrigins,
-  });
-  app.all("/auth/*", (c) => authPort.fetch(c.req.raw));
+  app.all("/auth/*", (c) => auth.fetch(c.req.raw));
 
   return app;
 }
