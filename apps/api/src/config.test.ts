@@ -20,10 +20,47 @@ describe("authentication configuration", () => {
     const config = loadConfig({
       NODE_ENV: "production",
       BETTER_AUTH_SECRET: validSecret,
+      BETTER_AUTH_PERSISTENCE: "postgres",
+      DATABASE_URL: "postgresql://example.invalid/labpics",
       CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
     });
 
     expect(config.authSecret).toBe(validSecret);
+  });
+
+  it("rejects memory authentication persistence in production", () => {
+    expect(() =>
+      loadConfig({
+        NODE_ENV: "production",
+        BETTER_AUTH_SECRET: validSecret,
+        BETTER_AUTH_PERSISTENCE: "memory",
+        DATABASE_URL: "postgresql://example.invalid/labpics",
+        CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it("requires a database URL for durable authentication persistence", () => {
+    expect(() =>
+      loadConfig({
+        NODE_ENV: "production",
+        BETTER_AUTH_SECRET: validSecret,
+        BETTER_AUTH_PERSISTENCE: "postgres",
+        CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it("accepts durable production authentication configuration", () => {
+    const config = loadConfig({
+      NODE_ENV: "production",
+      BETTER_AUTH_SECRET: validSecret,
+      BETTER_AUTH_PERSISTENCE: "postgres",
+      DATABASE_URL: "postgresql://example.invalid/labpics",
+      CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
+    });
+
+    expect(config.authPersistence).toBe("postgres");
   });
 
   it.each([
@@ -35,6 +72,8 @@ describe("authentication configuration", () => {
       loadConfig({
         NODE_ENV: "production",
         BETTER_AUTH_SECRET: secret,
+        BETTER_AUTH_PERSISTENCE: "postgres",
+        DATABASE_URL: "postgresql://example.invalid/labpics",
         CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
       }),
     ).toThrow(ConfigError);
