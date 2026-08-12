@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Labpics ID — Hono on Bun API. Modular monolith skeleton: health/readiness, pino, request-id, error envelope, timeout, CORS allowlist, /api/v1, Better Auth behind a port wrapper.",
+  "description": "Labpics ID — Hono on Bun core API: health/readiness, pino, request-id, error envelope, timeout, CORS allowlist, /api/v1, Better Auth behind a port wrapper.",
   "exports": {
     ".": {
       "types": "./src/index.ts",
