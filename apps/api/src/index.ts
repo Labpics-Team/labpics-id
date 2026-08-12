@@ -17,6 +17,7 @@ if (config.authSecret === undefined) {
 const auth = createBetterAuthPort({
   runtime: config.nodeEnv,
   persistence: config.authPersistence,
+  database: database?.db,
   secret: config.authSecret,
   baseUrl: config.authBaseUrl,
   trustedOrigins: config.corsAllowedOrigins,

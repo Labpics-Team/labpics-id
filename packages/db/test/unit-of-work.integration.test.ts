@@ -3,12 +3,15 @@ import { join } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import {
+  accounts,
   auditEvents,
   createDb,
   createDbPool,
   organization,
   outbox,
   PostgresUnitOfWork,
+  sessions,
+  users,
 } from "../src";
 
 const POSTGRES_17_IMAGE =
@@ -91,6 +94,63 @@ describe.skipIf(!runDbTest)("PostgresUnitOfWork", () => {
     });
   }
 
+  for (const failurePoint of [
+    "after-user",
+    "after-session",
+    "after-audit",
+    "after-outbox",
+  ] as const) {
+    it(`rolls identity, audit, and outbox state back when work throws ${failurePoint}`, async () => {
+      const db = createDb(requirePool());
+      const unitOfWork = new PostgresUnitOfWork(db);
+      const id = `identity-${failurePoint}-${crypto.randomUUID()}`;
+
+      const result = unitOfWork.run(async ({ transaction }) => {
+        await transaction
+          .insert(users)
+          .values({ id, name: "Identity rollback", email: `${id}@example.com` });
+        if (failurePoint === "after-user") throw new IdentityInjectedFailure(failurePoint);
+        await transaction.insert(accounts).values({
+          id: `account-${id}`,
+          accountId: id,
+          providerId: "credential",
+          userId: id,
+          password: "opaque-hash",
+        });
+        await transaction.insert(sessions).values({
+          id: `session-${id}`,
+          token: `token-${id}`,
+          userId: id,
+          expiresAt: new Date("2026-08-13T00:00:00.000Z"),
+        });
+        if (failurePoint === "after-session") throw new IdentityInjectedFailure(failurePoint);
+        await transaction.insert(auditEvents).values({
+          actorId: id,
+          action: "identity.registered",
+          targetType: "subject",
+          targetId: id,
+          occurredAt: new Date("2026-08-12T00:00:00.000Z"),
+          hash: `hash-${id}`,
+        });
+        if (failurePoint === "after-audit") throw new IdentityInjectedFailure(failurePoint);
+        await transaction.insert(outbox).values({
+          type: "identity.registered",
+          payload: { idempotencyKey: id, subjectId: id },
+        });
+        throw new IdentityInjectedFailure(failurePoint);
+      });
+
+      await expect(result).rejects.toBeInstanceOf(IdentityInjectedFailure);
+      expect(await identityRowCounts(requirePool(), id)).toEqual({
+        users: 0,
+        accounts: 0,
+        sessions: 0,
+        audit: 0,
+        outbox: 0,
+      });
+    });
+  }
+
   function requirePool(): ReturnType<typeof createDbPool> {
     if (pool === null) throw new Error("test database pool is not initialized");
     return pool;
@@ -102,6 +162,15 @@ class InjectedFailure extends Error {
 
   constructor(failurePoint: "after-audit" | "after-outbox") {
     super(`injected failure ${failurePoint}`);
+    this.failurePoint = failurePoint;
+  }
+}
+
+class IdentityInjectedFailure extends Error {
+  readonly failurePoint: "after-user" | "after-session" | "after-audit" | "after-outbox";
+
+  constructor(failurePoint: "after-user" | "after-session" | "after-audit" | "after-outbox") {
+    super(`injected identity failure ${failurePoint}`);
     this.failurePoint = failurePoint;
   }
 }
@@ -124,6 +193,35 @@ async function rowCounts(dbPool: ReturnType<typeof createDbPool>, id: string) {
   return {
     source: source.rows[0]?.count ?? 0,
     audit: audit.rows[0]?.count ?? 0,
+    outbox: outboxRows.rows[0]?.count ?? 0,
+  };
+}
+
+async function identityRowCounts(dbPool: ReturnType<typeof createDbPool>, id: string) {
+  const [userRows, accountRows, sessionRows, auditRows, outboxRows] = await Promise.all([
+    dbPool.query<{ count: number }>("SELECT count(*)::int AS count FROM users WHERE id = $1", [id]),
+    dbPool.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM accounts WHERE user_id = $1",
+      [id],
+    ),
+    dbPool.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM sessions WHERE user_id = $1",
+      [id],
+    ),
+    dbPool.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM audit_events WHERE target_id = $1",
+      [id],
+    ),
+    dbPool.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM outbox WHERE payload ->> 'idempotencyKey' = $1",
+      [id],
+    ),
+  ]);
+  return {
+    users: userRows.rows[0]?.count ?? 0,
+    accounts: accountRows.rows[0]?.count ?? 0,
+    sessions: sessionRows.rows[0]?.count ?? 0,
+    audit: auditRows.rows[0]?.count ?? 0,
     outbox: outboxRows.rows[0]?.count ?? 0,
   };
 }

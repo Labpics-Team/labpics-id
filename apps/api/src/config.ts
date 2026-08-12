@@ -7,6 +7,7 @@ export class ConfigError extends Error {
 
 export type NodeEnv = "development" | "test" | "production";
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
+export type AuthPersistence = "memory" | "postgres";
 
 export interface AppConfig {
   readonly nodeEnv: NodeEnv;
@@ -15,7 +16,7 @@ export interface AppConfig {
   readonly databaseUrl: string | undefined;
   readonly authSecret: string | undefined;
   readonly authBaseUrl: string | undefined;
-  readonly authPersistence: "memory";
+  readonly authPersistence: AuthPersistence;
   readonly corsAllowedOrigins: readonly string[];
   readonly requestTimeoutMs: number;
   readonly logLevel: LogLevel;
@@ -23,6 +24,7 @@ export interface AppConfig {
 
 const NODE_ENVS: readonly NodeEnv[] = ["development", "test", "production"];
 const LOG_LEVELS: readonly LogLevel[] = ["trace", "debug", "info", "warn", "error", "fatal"];
+const AUTH_PERSISTENCE: readonly AuthPersistence[] = ["memory", "postgres"];
 
 function parseEnum<T extends string>(
   value: string | undefined,
@@ -95,6 +97,12 @@ function parseCorsOrigins(value: string | undefined, nodeEnv: NodeEnv): readonly
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const nodeEnv = parseEnum(env.NODE_ENV, NODE_ENVS, "NODE_ENV", "development");
+  const authPersistence = parseEnum(
+    env.BETTER_AUTH_PERSISTENCE,
+    AUTH_PERSISTENCE,
+    "BETTER_AUTH_PERSISTENCE",
+    nodeEnv === "production" ? "postgres" : "memory",
+  );
   const configuredSecret = env.BETTER_AUTH_SECRET?.trim();
   const authSecret = configuredSecret === "" ? undefined : configuredSecret;
   if (nodeEnv === "production" && authSecret === undefined) {
@@ -106,14 +114,21 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (nodeEnv === "production" && authSecret !== undefined && FALLBACK_SECRETS.has(authSecret)) {
     throw new ConfigError("BETTER_AUTH_SECRET must not use a known fallback value in production");
   }
+  if (nodeEnv === "production" && authPersistence !== "postgres") {
+    throw new ConfigError("Durable authentication persistence is required in production");
+  }
+  const databaseUrl = env.DATABASE_URL?.trim() === "" ? undefined : env.DATABASE_URL;
+  if (authPersistence === "postgres" && databaseUrl === undefined) {
+    throw new ConfigError("DATABASE_URL is required for durable authentication persistence");
+  }
   return {
     nodeEnv,
     host: env.HOST?.trim() !== "" ? (env.HOST ?? "0.0.0.0") : "0.0.0.0",
     port: parsePositiveInt(env.PORT, "PORT", 3000),
-    databaseUrl: env.DATABASE_URL?.trim() === "" ? undefined : env.DATABASE_URL,
+    databaseUrl,
     authSecret,
     authBaseUrl: env.BETTER_AUTH_URL?.trim() === "" ? undefined : env.BETTER_AUTH_URL,
-    authPersistence: "memory",
+    authPersistence,
     corsAllowedOrigins: parseCorsOrigins(env.CORS_ALLOWED_ORIGINS, nodeEnv),
     requestTimeoutMs: parsePositiveInt(env.REQUEST_TIMEOUT_MS, "REQUEST_TIMEOUT_MS", 10_000),
     logLevel: parseEnum(env.LOG_LEVEL, LOG_LEVELS, "LOG_LEVEL", "info"),

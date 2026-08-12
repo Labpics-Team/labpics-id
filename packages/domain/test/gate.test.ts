@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -45,6 +45,20 @@ describe("domain dependency gate", () => {
       });
       expect(res.status).toBe(1);
       expect(`${res.stdout}${res.stderr}`).toContain("hono");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects the review counterexample in an API route", () => {
+    const dir = mkdtempSync(join(tmpdir(), "domain-gate-v1-route-"));
+    try {
+      const routeDir = join(dir, "apps", "api", "src", "routes");
+      mkdirSync(routeDir, { recursive: true });
+      writeFileSync(join(routeDir, "v1.ts"), 'import { betterAuth } from "better-auth";\n');
+      const res = spawnSync("bun", [script, routeDir], { encoding: "utf8" });
+      expect(res.status).toBe(1);
+      expect(`${res.stdout}${res.stderr}`).toContain("better-auth");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
