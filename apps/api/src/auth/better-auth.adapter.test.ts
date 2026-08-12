@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { createDb, createDbPool } from "@labpics/db";
+import { createDb, createDbPool, PostgresIdentityAdapter, PostgresUnitOfWork } from "@labpics/db";
+import type { IssueTokenCommand } from "../../../../packages/domain/src";
+import { createIdentityUseCases } from "../../../../packages/domain/src";
+import { runIdentityUseCaseContract } from "../../../../packages/domain/test/identity-contract-harness";
 import { ConfigError } from "../config";
 import { createBetterAuthPort } from "./better-auth.adapter";
 import type { AuthPort } from "./port";
@@ -79,6 +82,40 @@ describe.skipIf(connectionString === undefined)("Better Auth Postgres adapter co
       [email],
     );
     expect(persisted.rows).toEqual([{ email }]);
+  });
+
+  it("runs the shared identity use-case contract through the Postgres adapter", async () => {
+    if (pool === null) throw new ConfigError("TEST_DATABASE_URL is required");
+    const adapter = new PostgresIdentityAdapter();
+    const issued = new Map<string, string>();
+    const useCases = createIdentityUseCases({
+      repository: adapter,
+      credentials: adapter,
+      clock: { now: () => new Date("2026-08-12T00:00:00.000Z") },
+      tokens: {
+        issue: async ({ purpose }: IssueTokenCommand) => {
+          const raw = `${purpose}-${crypto.randomUUID()}`;
+          issued.set(purpose, raw);
+          return {
+            raw,
+            digest: raw,
+            expiresAt: new Date("2026-08-13T00:00:00.000Z"),
+          };
+        },
+        digest: async (raw: string) => raw,
+      },
+      notifications: { enqueue: async () => undefined },
+      rateLimit: { consume: async () => ({ kind: "allowed" }) },
+      audit: adapter,
+      outbox: adapter,
+      protocolRevocation: adapter,
+      unitOfWork: new PostgresUnitOfWork(createDb(pool)),
+    });
+
+    await runIdentityUseCaseContract({
+      useCases,
+      token: (kind) => issued.get(kind) ?? "missing-token",
+    });
   });
 });
 
