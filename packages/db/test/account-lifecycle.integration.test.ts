@@ -27,11 +27,14 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
     ).toMatchObject({ kind: "accepted" });
     expect(
       await harness.useCases.register({
-        email: Email.from(email.toString().toUpperCase()),
+        email: Email.from(`  ${email.toString().toUpperCase()}  `),
         name: "Duplicate",
         password: "correct horse battery staple",
       }),
     ).toEqual({ kind: "rejected", error: { kind: "conflict" } });
+    expect(harness.notifications.filter((item) => item.kind === "email_verification")).toHaveLength(
+      1,
+    );
     expect(
       await harness.useCases.signIn({ email, password: "correct horse battery staple" }),
     ).toEqual({ kind: "rejected", error: { kind: "unverified_email" } });
@@ -73,7 +76,11 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
       password: "correct horse battery staple",
     });
     await harness.useCases.verifyEmail({ token: harness.token("email_verification") });
-    await harness.useCases.signIn({ email, password: "correct horse battery staple" });
+    const signedIn = await harness.useCases.signIn({
+      email,
+      password: "correct horse battery staple",
+    });
+    if (signedIn.kind !== "accepted") throw new Error("expected session before reset");
     expect(await harness.useCases.requestPasswordReset({ email })).toEqual({
       kind: "accepted",
       value: undefined,
@@ -82,6 +89,7 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
       kind: "accepted",
       value: undefined,
     });
+    expect(harness.notifications.filter((item) => item.kind === "password_reset")).toHaveLength(1);
     const token = harness.token("password_reset");
     const persistedToken = await pool?.query<{ value: string }>(
       "SELECT value FROM verification_tokens WHERE identifier LIKE 'password_reset:%' ORDER BY created_at DESC LIMIT 1",
@@ -94,6 +102,11 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
         newPassword: "new correct horse battery staple",
       }),
     ).toEqual({ kind: "accepted", value: undefined });
+    const session = await pool?.query<{ revoked_at: Date | null }>(
+      "SELECT revoked_at FROM sessions WHERE id = $1",
+      [signedIn.value.id],
+    );
+    expect(session?.rows[0]?.revoked_at).toBeInstanceOf(Date);
     expect(
       await harness.useCases.resetPassword({
         token,
@@ -107,7 +120,9 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
       await harness.useCases.signIn({ email, password: "new correct horse battery staple" }),
     ).toMatchObject({ kind: "accepted" });
     const leaked = await pool?.query<{ count: number }>(
-      "SELECT count(*)::int AS count FROM audit_events WHERE concat_ws(' ', action, target_id) LIKE $1 OR concat_ws(' ', action, target_id) LIKE $2",
+      `SELECT count(*)::int AS count FROM audit_events
+       WHERE concat_ws(' ', actor_id, action, target_type, target_id, coalesce(ip, ''), coalesce(user_agent, '')) LIKE $1
+          OR concat_ws(' ', actor_id, action, target_type, target_id, coalesce(ip, ''), coalesce(user_agent, '')) LIKE $2`,
       [`%${token}%`, "%new correct horse battery staple%"],
     );
     expect(leaked?.rows[0]?.count).toBe(0);
@@ -117,6 +132,7 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
     if (pool === null) throw new Error("TEST_DATABASE_URL is required");
     const adapter = new PostgresIdentityAdapter();
     const issued = new Map<string, string>();
+    const notifications: { readonly kind: "email_verification" | "password_reset" }[] = [];
     return {
       useCases: createIdentityUseCases({
         repository: adapter,
@@ -134,7 +150,11 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
           },
           digest: async (raw) => `digest:${raw}`,
         },
-        notifications: { enqueue: async () => undefined },
+        notifications: {
+          enqueue: async (notification) => {
+            notifications.push(notification);
+          },
+        },
         rateLimit: { consume: async () => ({ kind: "allowed" }) },
         audit: adapter,
         outbox: adapter,
@@ -142,6 +162,7 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
         unitOfWork: new PostgresUnitOfWork(createDb(pool)),
       }),
       token: (purpose: string) => issued.get(purpose) ?? "missing-token",
+      notifications,
     };
   }
 });
