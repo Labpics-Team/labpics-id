@@ -1,6 +1,7 @@
 import { accounts, type Database, sessions, users, verificationTokens } from "@labpics/db";
 import { type AuthPersistence, ConfigError, type NodeEnv } from "../config";
 import type { AuthPort } from "./port";
+import { sessionCookieAttributes } from "./session-cookie";
 
 export interface BetterAuthAdapterConfig {
   readonly runtime: NodeEnv;
@@ -65,6 +66,14 @@ export function createBetterAuthPort(config: BetterAuthAdapterConfig): AuthPort 
           trustedOrigins: [...config.trustedOrigins],
           database,
           emailAndPassword: { enabled: true },
+          session: {
+            expiresIn: 60 * 60,
+            updateAge: 15 * 60,
+          },
+          advanced: {
+            defaultCookieAttributes: sessionCookieAttributes(config.runtime),
+            useSecureCookies: config.runtime === "production",
+          },
         };
         if (config.baseUrl !== undefined) {
           options.baseURL = config.baseUrl;
