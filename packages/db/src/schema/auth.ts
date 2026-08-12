@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
  * Better Auth core tables — placeholder mapping for the Drizzle adapter.
@@ -16,6 +16,7 @@ export const users = pgTable("users", {
   image: text("image"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  deactivatedAt: timestamp("deactivated_at", { withTimezone: true, mode: "date" }),
 });
 
 export const sessions = pgTable(
@@ -28,6 +29,7 @@ export const sessions = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -60,7 +62,10 @@ export const accounts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
-  (table) => [index("accounts_user_id_idx").on(table.userId)],
+  (table) => [
+    index("accounts_user_id_idx").on(table.userId),
+    uniqueIndex("accounts_provider_account_unique").on(table.providerId, table.accountId),
+  ],
 );
 
 export const verificationTokens = pgTable("verification_tokens", {
