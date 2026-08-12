@@ -90,6 +90,10 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
       value: undefined,
     });
     expect(harness.notifications.filter((item) => item.kind === "password_reset")).toHaveLength(1);
+    const durableIntent = await pool?.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM outbox WHERE type = 'identity.password_reset_requested' AND payload -> 'payload' ->> 'subjectId' IS NOT NULL",
+    );
+    expect(durableIntent?.rows[0]?.count).toBeGreaterThan(0);
     const token = harness.token("password_reset");
     const persistedToken = await pool?.query<{ value: string }>(
       "SELECT value FROM verification_tokens WHERE identifier LIKE 'password_reset:%' ORDER BY created_at DESC LIMIT 1",
@@ -126,6 +130,22 @@ describe.skipIf(connectionString === undefined)("account lifecycle", () => {
       [`%${token}%`, "%new correct horse battery staple%"],
     );
     expect(leaked?.rows[0]?.count).toBe(0);
+    const auditRows = await pool?.query<{
+      actor_id: string;
+      action: string;
+      target_type: string;
+      target_id: string;
+      ip: string | null;
+      user_agent: string | null;
+    }>(
+      "SELECT actor_id, action, target_type, target_id, ip, user_agent FROM audit_events WHERE target_id = $1",
+      [signedIn.value.subjectId],
+    );
+    expect(auditRows?.rows.length).toBeGreaterThan(0);
+    for (const row of auditRows?.rows ?? []) {
+      expect(JSON.stringify(row)).not.toContain(token);
+      expect(JSON.stringify(row)).not.toContain("new correct horse battery staple");
+    }
   });
 
   function createHarness() {
