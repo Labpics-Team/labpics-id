@@ -89,6 +89,43 @@ describe.skipIf(connectionString === undefined)("first-party session security", 
     expect(second.sessionId).not.toBe(first.sessionId);
   });
 
+  it("supports explicit logout-all and keeps first-party refresh material out of accounts", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const adapter = new PostgresSessionSecurityAdapter(createDb(pool));
+    const subjectId = userId(`subject-${crypto.randomUUID()}`);
+    await adapter.createFixture(subjectId, now);
+    await adapter.createFixture(subjectId, now);
+    await adapter.logoutAll(subjectId, now, "logout_all");
+
+    expect(await adapter.list(subjectId, now)).toHaveLength(0);
+    const accountRefresh = await pool.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM accounts WHERE user_id = $1 AND refresh_token IS NOT NULL",
+      [subjectId],
+    );
+    expect(accountRefresh.rows[0]?.count).toBe(0);
+  });
+
+  it("emits the canonical subject-deactivated protocol envelope", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const adapter = new PostgresSessionSecurityAdapter(createDb(pool));
+    const subjectId = userId(`subject-${crypto.randomUUID()}`);
+    await adapter.createFixture(subjectId, now);
+    await adapter.deactivate(subjectId, now);
+    const rows = await pool.query<{ type: string; payload: Record<string, unknown> }>(
+      "SELECT type, payload FROM outbox WHERE type = 'identity.subject_deactivated' AND payload -> 'payload' ->> 'subjectId' = $1",
+      [subjectId],
+    );
+
+    expect(rows.rows).toHaveLength(1);
+    expect(rows.rows[0]?.type).toBe("identity.subject_deactivated");
+    expect(rows.rows[0]?.payload).toMatchObject({
+      idempotencyKey: `identity.subject_deactivated:${subjectId}:${now.toISOString()}`,
+      type: "identity.subject_deactivated",
+      payload: { subjectId },
+      occurredAt: now.toISOString(),
+    });
+  });
+
   it("rejects rotation after password-change logout-all", async () => {
     if (pool === null) throw new Error("TEST_DATABASE_URL is required");
     const adapter = new PostgresSessionSecurityAdapter(createDb(pool));
