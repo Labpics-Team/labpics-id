@@ -134,16 +134,43 @@ describe.skipIf(connectionString === undefined)("Better Auth Postgres adapter co
       token: (kind) => issued.get(kind) ?? "missing-token",
     });
   });
+
+  it("emits the exact secure host-only cookie from the production adapter", async () => {
+    if (pool === null) throw new ConfigError("TEST_DATABASE_URL is required");
+    const auth = createBetterAuthPort({
+      runtime: "production",
+      persistence: "postgres",
+      database: createDb(pool),
+      secret: "a-production-secret-with-more-than-32-characters",
+      baseUrl: "https://id.lab.pics",
+      trustedOrigins: ["https://id.lab.pics"],
+    });
+
+    const response = await registerThroughAuthPort(
+      auth,
+      `production-cookie-${crypto.randomUUID()}@example.com`,
+      "https://id.lab.pics",
+    );
+    const cookie = response.headers.get("set-cookie");
+
+    expect(response.status).toBe(200);
+    expect(cookie).toStartWith("__Secure-better-auth.session_token=");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("SameSite=Strict");
+    expect(cookie).not.toContain("Domain=");
+  });
 });
 
 async function registerThroughAuthPort(
   auth: AuthPort,
   email = `identity-port-${crypto.randomUUID()}@example.com`,
+  origin = "http://localhost:3001",
 ): Promise<Response> {
   const response = await auth.fetch(
-    new Request("http://localhost:3000/auth/sign-up/email", {
+    new Request(`${origin}/auth/sign-up/email`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin: "http://localhost:3001" },
+      headers: { "content-type": "application/json", origin },
       body: JSON.stringify({
         email,
         name: "Identity Port",
