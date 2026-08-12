@@ -1,6 +1,14 @@
-import { accounts, type Database, sessions, users, verificationTokens } from "@labpics/db";
+import {
+  accounts,
+  type Database,
+  PostgresSessionSecurityAdapter,
+  sessions,
+  users,
+  verificationTokens,
+} from "@labpics/db";
 import { type AuthPersistence, ConfigError, type NodeEnv } from "../config";
 import type { AuthPort } from "./port";
+import { sessionCookieAttributes } from "./session-cookie";
 
 export interface BetterAuthAdapterConfig {
   readonly runtime: NodeEnv;
@@ -65,7 +73,27 @@ export function createBetterAuthPort(config: BetterAuthAdapterConfig): AuthPort 
           trustedOrigins: [...config.trustedOrigins],
           database,
           emailAndPassword: { enabled: true },
+          session: {
+            expiresIn: 60 * 60,
+            updateAge: 15 * 60,
+          },
+          advanced: {
+            defaultCookieAttributes: sessionCookieAttributes(config.runtime),
+            useSecureCookies: config.runtime === "production",
+          },
         };
+        if (durableDatabase !== undefined) {
+          const sessionSecurity = new PostgresSessionSecurityAdapter(durableDatabase);
+          options.databaseHooks = {
+            session: {
+              create: {
+                after: async (session) => {
+                  await sessionSecurity.initializeProviderSession(session.id, session.createdAt);
+                },
+              },
+            },
+          };
+        }
         if (config.baseUrl !== undefined) {
           options.baseURL = config.baseUrl;
         }

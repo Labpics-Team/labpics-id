@@ -30,11 +30,32 @@ export const sessions = pgTable(
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
     revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    lastActiveAt: timestamp("last_active_at", { withTimezone: true, mode: "date" }),
+    absoluteExpiresAt: timestamp("absolute_expires_at", { withTimezone: true, mode: "date" }),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
   },
   (table) => [index("sessions_user_id_idx").on(table.userId)],
+);
+
+export const sessionRefreshCredentials = pgTable(
+  "session_refresh_credentials",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    familyId: text("family_id").notNull(),
+    digest: text("digest").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("session_refresh_credentials_session_idx").on(table.sessionId),
+    index("session_refresh_credentials_family_idx").on(table.familyId),
+  ],
 );
 
 export const accounts = pgTable(

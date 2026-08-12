@@ -115,6 +115,8 @@ export class PostgresIdentityAdapter
       expiresAt,
       createdAt: authenticatedAt,
       updatedAt: authenticatedAt,
+      lastActiveAt: authenticatedAt,
+      absoluteExpiresAt: expiresAt,
     });
     return {
       id,
