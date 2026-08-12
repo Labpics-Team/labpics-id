@@ -44,7 +44,7 @@ describe("Better Auth adapter safety", () => {
       trustedOrigins: ["http://localhost:3001"],
     });
 
-    expect(await registerThroughAuthPort(auth)).toBe(200);
+    expect((await registerThroughAuthPort(auth)).status).toBe(200);
   });
 });
 
@@ -74,14 +74,31 @@ describe.skipIf(connectionString === undefined)("Better Auth Postgres adapter co
       trustedOrigins: ["http://localhost:3001"],
     });
 
-    const responseStatus = await registerThroughAuthPort(auth, email);
+    const response = await registerThroughAuthPort(auth, email);
 
-    expect(responseStatus).toBe(200);
+    expect(response.status).toBe(200);
     const persisted = await pool.query<{ email: string }>(
       "SELECT email FROM users WHERE email = $1",
       [email],
     );
     expect(persisted.rows).toEqual([{ email }]);
+    const sessionSecurity = await pool.query<{
+      last_active_at: Date | null;
+      absolute_expires_at: Date | null;
+      refresh_count: number;
+    }>(
+      `SELECT s.last_active_at, s.absolute_expires_at,
+        (SELECT count(*)::int FROM session_refresh_credentials r WHERE r.session_id = s.id) AS refresh_count
+       FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.email = $1`,
+      [email],
+    );
+    expect(sessionSecurity.rows[0]?.last_active_at).toBeInstanceOf(Date);
+    expect(sessionSecurity.rows[0]?.absolute_expires_at).toBeInstanceOf(Date);
+    expect(sessionSecurity.rows[0]?.refresh_count).toBe(1);
+    const setCookie = response.headers.get("set-cookie");
+    expect(setCookie).toContain("HttpOnly");
+    expect(setCookie).toContain("SameSite=Strict");
+    expect(setCookie).not.toContain("Domain=");
   });
 
   it("runs the shared identity use-case contract through the Postgres adapter", async () => {
@@ -122,7 +139,7 @@ describe.skipIf(connectionString === undefined)("Better Auth Postgres adapter co
 async function registerThroughAuthPort(
   auth: AuthPort,
   email = `identity-port-${crypto.randomUUID()}@example.com`,
-): Promise<number> {
+): Promise<Response> {
   const response = await auth.fetch(
     new Request("http://localhost:3000/auth/sign-up/email", {
       method: "POST",
@@ -134,5 +151,5 @@ async function registerThroughAuthPort(
       }),
     }),
   );
-  return response.status;
+  return response;
 }

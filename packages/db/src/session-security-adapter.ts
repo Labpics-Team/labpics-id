@@ -9,6 +9,7 @@ const ABSOLUTE_TTL_MS = 60 * 60 * 1000;
 export type RotationResult =
   | { readonly kind: "rotated"; readonly refreshToken: string }
   | { readonly kind: "replay"; readonly familyId: string }
+  | { readonly kind: "revoked" }
   | { readonly kind: "invalid" };
 
 export class PostgresSessionSecurityAdapter {
@@ -54,16 +55,46 @@ export class PostgresSessionSecurityAdapter {
     return { subjectId, sessionId, familyId, refreshToken };
   }
 
+  async initializeProviderSession(sessionId: string, now: Date): Promise<void> {
+    const familyId = crypto.randomUUID();
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(sessions)
+        .set({
+          lastActiveAt: now,
+          expiresAt: new Date(now.getTime() + IDLE_TTL_MS),
+          absoluteExpiresAt: new Date(now.getTime() + ABSOLUTE_TTL_MS),
+        })
+        .where(eq(sessions.id, sessionId));
+      await tx.insert(sessionRefreshCredentials).values({
+        id: crypto.randomUUID(),
+        sessionId,
+        familyId,
+        digest: digest(crypto.randomUUID()),
+        expiresAt: new Date(now.getTime() + ABSOLUTE_TTL_MS),
+        createdAt: now,
+      });
+    });
+  }
+
   async rotate(refreshToken: string, now: Date): Promise<RotationResult> {
     return this.db.transaction(async (tx) => {
       const tokenDigest = digest(refreshToken);
       const rows = await tx
-        .select()
+        .select({
+          credential: sessionRefreshCredentials,
+          revokedAt: sessions.revokedAt,
+          deactivatedAt: users.deactivatedAt,
+        })
         .from(sessionRefreshCredentials)
+        .innerJoin(sessions, eq(sessionRefreshCredentials.sessionId, sessions.id))
+        .innerJoin(users, eq(sessions.userId, users.id))
         .where(eq(sessionRefreshCredentials.digest, tokenDigest))
         .limit(1);
-      const credential = rows[0];
-      if (credential === undefined) return { kind: "invalid" };
+      const row = rows[0];
+      if (row === undefined) return { kind: "invalid" };
+      if (row.revokedAt !== null || row.deactivatedAt !== null) return { kind: "revoked" };
+      const credential = row.credential;
       const claimed = await tx
         .update(sessionRefreshCredentials)
         .set({ usedAt: now })
@@ -175,7 +206,17 @@ export class PostgresSessionSecurityAdapter {
     const rows = await this.db
       .select({ id: outbox.id })
       .from(outbox)
-      .where(eq(outbox.type, `identity.subject_deactivated.${subjectId}`));
+      .where(
+        and(
+          eq(outbox.type, "identity.subject_deactivated"),
+          eq(outbox.payload, {
+            idempotencyKey: `identity.subject_deactivated:${subjectId}:2026-08-12T00:00:00.000Z`,
+            type: "identity.subject_deactivated",
+            payload: { subjectId },
+            occurredAt: "2026-08-12T00:00:00.000Z",
+          }),
+        ),
+      );
     return rows.length;
   }
 
@@ -221,7 +262,13 @@ export class PostgresSessionSecurityAdapter {
       occurredAt: now,
       hash: crypto.randomUUID(),
     });
-    await tx.insert(outbox).values({ type: `${action}.${subjectId}`, payload: { subjectId } });
+    const envelope = {
+      idempotencyKey: `${action}:${subjectId}:${now.toISOString()}`,
+      type: action,
+      payload: { subjectId },
+      occurredAt: now,
+    };
+    await tx.insert(outbox).values({ type: action, payload: envelope });
   }
 }
 

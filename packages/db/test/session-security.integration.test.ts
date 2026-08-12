@@ -88,4 +88,24 @@ describe.skipIf(connectionString === undefined)("first-party session security", 
     expect(await adapter.protocolSignalCount(subjectId)).toBe(1);
     expect(second.sessionId).not.toBe(first.sessionId);
   });
+
+  it("rejects rotation after password-change logout-all", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const adapter = new PostgresSessionSecurityAdapter(createDb(pool));
+    const subjectId = userId(`subject-${crypto.randomUUID()}`);
+    const fixture = await adapter.createFixture(subjectId, now);
+    await adapter.logoutAll(subjectId, now, "password_change");
+
+    expect(await adapter.rotate(fixture.refreshToken, now)).toEqual({ kind: "revoked" });
+  });
+
+  it("rejects rotation after subject deactivation", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const adapter = new PostgresSessionSecurityAdapter(createDb(pool));
+    const subjectId = userId(`subject-${crypto.randomUUID()}`);
+    const fixture = await adapter.createFixture(subjectId, now);
+    await adapter.deactivate(subjectId, now);
+
+    expect(await adapter.rotate(fixture.refreshToken, now)).toEqual({ kind: "revoked" });
+  });
 });
