@@ -50,18 +50,20 @@ describe.skipIf(connectionString === undefined)("IdentityUseCases atomicity", ()
           password: "correct horse battery staple",
         }),
       ).rejects.toBeInstanceOf(InjectedUseCaseFailure);
+      const subjectId = adapter.createdSubjectId;
+      if (subjectId === null) throw new MissingSubjectEvidenceError();
 
       const [users, audits, envelopes] = await Promise.all([
-        pool.query<{ count: number }>("SELECT count(*)::int AS count FROM users WHERE email = $1", [
-          email,
+        pool.query<{ count: number }>("SELECT count(*)::int AS count FROM users WHERE id = $1", [
+          subjectId,
         ]),
         pool.query<{ count: number }>(
-          "SELECT count(*)::int AS count FROM audit_events WHERE target_id IN (SELECT id FROM users WHERE email = $1)",
-          [email],
+          "SELECT count(*)::int AS count FROM audit_events WHERE target_id = $1",
+          [subjectId],
         ),
         pool.query<{ count: number }>(
-          "SELECT count(*)::int AS count FROM outbox WHERE payload::text LIKE $1",
-          [`%${email}%`],
+          "SELECT count(*)::int AS count FROM outbox WHERE payload -> 'payload' ->> 'subjectId' = $1",
+          [subjectId],
         ),
       ]);
       expect({
@@ -75,10 +77,17 @@ describe.skipIf(connectionString === undefined)("IdentityUseCases atomicity", ()
 
 class FaultInjectingIdentityAdapter extends PostgresIdentityAdapter {
   private readonly fault: "after_identity" | "after_audit" | "after_outbox";
+  createdSubjectId: string | null = null;
 
   constructor(fault: "after_identity" | "after_audit" | "after_outbox") {
     super();
     this.fault = fault;
+  }
+
+  override async createSubject(...args: Parameters<PostgresIdentityAdapter["createSubject"]>) {
+    const subject = await super.createSubject(...args);
+    this.createdSubjectId = subject.id;
+    return subject;
   }
 
   override async storePassword(...args: Parameters<PostgresIdentityAdapter["storePassword"]>) {
@@ -103,4 +112,8 @@ class InjectedUseCaseFailure extends Error {
 
 class TestConfigurationError extends Error {
   override readonly name = "TestConfigurationError";
+}
+
+class MissingSubjectEvidenceError extends Error {
+  override readonly name = "MissingSubjectEvidenceError";
 }
