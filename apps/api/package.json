@@ -22,6 +22,7 @@
   "dependencies": {
     "@labpics/contracts": "0.1.0",
     "@labpics/db": "0.1.0",
+    "@labpics/domain": "0.1.0",
     "better-auth": "1.6.26",
     "hono": "4.13.1",
     "pino": "10.3.1",

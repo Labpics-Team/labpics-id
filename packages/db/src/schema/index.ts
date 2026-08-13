@@ -5,6 +5,7 @@ import type { sessions, users } from "./auth";
 export * from "./access";
 export * from "./audit";
 export * from "./auth";
+export * from "./bootstrap";
 export * from "./organization";
 
 export type User = typeof users.$inferSelect;
