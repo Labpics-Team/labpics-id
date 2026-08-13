@@ -33,7 +33,7 @@ export class PostgresRateLimitPort implements RateLimitPort {
     const sourceDigest = digest(`${attempt.action}:source:${attempt.source ?? "unknown"}`);
     try {
       await this.availabilityCheck();
-      return this.db.transaction(async (tx) => {
+      return await this.db.transaction(async (tx) => {
         const account = await consumeDimension(
           tx,
           attempt.action,

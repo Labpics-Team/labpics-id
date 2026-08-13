@@ -29,7 +29,14 @@ function makeDeps(env: Record<string, string | undefined> = {}): AppDeps {
   const auth: AuthPort = {
     fetch: async () => new Response("test auth", { status: 200 }),
   };
-  return { config, logger, database: null, auth, rateLimit: undefined };
+  return {
+    config,
+    logger,
+    database: null,
+    auth,
+    rateLimit: undefined,
+    lifecycleUseCases: undefined,
+  };
 }
 
 const logger: Logger = createLogger("fatal");
