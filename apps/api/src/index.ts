@@ -1,3 +1,5 @@
+import { PostgresIdentityAdapter, PostgresRateLimitPort, PostgresUnitOfWork } from "@labpics/db";
+import { createIdentityUseCases, verificationResendBudget } from "@labpics/domain";
 import { createApp } from "./app";
 import { createBetterAuthPort } from "./auth/better-auth.adapter";
 import { createBootstrapControl } from "./bootstrap-control";
@@ -10,12 +12,15 @@ const logger = createLogger(config.logLevel);
 
 const database =
   config.databaseUrl !== undefined ? createDatabaseConnection(config.databaseUrl, logger) : null;
+const rateLimit = database === null ? undefined : new PostgresRateLimitPort(database.db);
+const composedRateLimit = rateLimit;
 createBootstrapControl(
   {
     enabled: process.env.FIRST_ADMIN_BOOTSTRAP_ENABLED === "true",
     verifiedEmail: process.env.FIRST_ADMIN_BOOTSTRAP_EMAIL,
   },
   database,
+  rateLimit,
 );
 if (config.authSecret === undefined) {
   throw new Error(
@@ -31,7 +36,44 @@ const auth = createBetterAuthPort({
   trustedOrigins: config.corsAllowedOrigins,
 });
 
-const app = createApp({ config, logger, database, auth });
+const lifecycleAdapter = database === null ? undefined : new PostgresIdentityAdapter();
+const lifecycleUseCases =
+  database === null || lifecycleAdapter === undefined || rateLimit === undefined
+    ? undefined
+    : createIdentityUseCases({
+        repository: lifecycleAdapter,
+        credentials: lifecycleAdapter,
+        clock: { now: () => new Date() },
+        tokens: {
+          issue: async () => ({
+            raw: "transport-hidden",
+            digest: "transport-hidden",
+            expiresAt: new Date(),
+          }),
+          digest: async (raw) => raw,
+        },
+        notifications: { enqueue: async () => undefined },
+        rateLimit,
+        audit: lifecycleAdapter,
+        outbox: lifecycleAdapter,
+        protocolRevocation: lifecycleAdapter,
+        unitOfWork: new PostgresUnitOfWork(database.db),
+      });
+const app = createApp({
+  config,
+  logger,
+  database,
+  auth,
+  rateLimit,
+  lifecycleUseCases:
+    lifecycleUseCases === undefined || composedRateLimit === undefined
+      ? undefined
+      : {
+          requestPasswordReset: lifecycleUseCases.requestPasswordReset.bind(lifecycleUseCases),
+          resendVerification: async ({ email }) =>
+            verificationResendBudget({ rateLimit: composedRateLimit }, email.toString(), "api"),
+        },
+});
 
 const server = Bun.serve({
   hostname: config.host,

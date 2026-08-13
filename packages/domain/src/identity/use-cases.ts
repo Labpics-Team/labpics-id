@@ -27,6 +27,22 @@ export interface IdentityUseCaseDependencies {
   readonly unitOfWork: UnitOfWork;
 }
 
+export async function verificationResendBudget(
+  deps: Pick<IdentityUseCaseDependencies, "rateLimit">,
+  email: string,
+  source: string,
+) {
+  return deps.rateLimit.consume({ action: "verification_resend", key: email, source });
+}
+
+export async function bootstrapClaimBudget(
+  deps: Pick<IdentityUseCaseDependencies, "rateLimit">,
+  email: string,
+  source: string,
+) {
+  return deps.rateLimit.consume({ action: "bootstrap_claim", key: email, source });
+}
+
 export function createIdentityUseCases(deps: IdentityUseCaseDependencies): IdentityUseCases {
   return {
     async register(command) {
@@ -58,6 +74,8 @@ export function createIdentityUseCases(deps: IdentityUseCaseDependencies): Ident
       });
     },
     async verifyEmail(command) {
+      const limited = await limit(deps, "verification_consume", command.token);
+      if (limited !== null) return limited;
       return deps.unitOfWork.run(async (context) => {
         const subjectId = await consumeToken(deps, command, "email_verification", context);
         if (subjectId === null) return rejected("invalid_token");
@@ -106,6 +124,8 @@ export function createIdentityUseCases(deps: IdentityUseCaseDependencies): Ident
       });
     },
     async resetPassword(command) {
+      const limited = await limit(deps, "password_reset_consume", command.token);
+      if (limited !== null) return limited;
       return deps.unitOfWork.run(async (context) => {
         const subjectId = await consumeToken(deps, command, "password_reset", context);
         if (subjectId === null) return rejected("invalid_token");
@@ -159,7 +179,12 @@ async function consumeToken(
 
 async function limit(
   deps: IdentityUseCaseDependencies,
-  action: "registration" | "sign_in" | "password_reset",
+  action:
+    | "registration"
+    | "sign_in"
+    | "password_reset"
+    | "verification_consume"
+    | "password_reset_consume",
   key: string,
 ) {
   const decision = await deps.rateLimit.consume({ action, key });
