@@ -1,5 +1,6 @@
 import { createApp } from "./app";
 import { createBetterAuthPort } from "./auth/better-auth.adapter";
+import { createBootstrapControl } from "./bootstrap-control";
 import { loadConfig } from "./config";
 import { createDatabaseConnection } from "./lib/db";
 import { createLogger } from "./lib/logger";
@@ -9,6 +10,13 @@ const logger = createLogger(config.logLevel);
 
 const database =
   config.databaseUrl !== undefined ? createDatabaseConnection(config.databaseUrl, logger) : null;
+createBootstrapControl(
+  {
+    enabled: process.env.FIRST_ADMIN_BOOTSTRAP_ENABLED === "true",
+    verifiedEmail: process.env.FIRST_ADMIN_BOOTSTRAP_EMAIL,
+  },
+  database,
+);
 if (config.authSecret === undefined) {
   throw new Error(
     "BETTER_AUTH_SECRET must be configured before composing the authentication adapter",

@@ -6,7 +6,7 @@ import { createDb, createDbPool, FirstAdminBootstrap } from "../src";
 
 const connectionString = process.env.TEST_DATABASE_URL;
 
-describe.skipIf(connectionString === undefined)("D14 first administrator bootstrap", () => {
+describe.skipIf(connectionString === undefined).serial("D14 first administrator bootstrap", () => {
   const pool = connectionString === undefined ? null : createDbPool(connectionString);
   beforeAll(async () => {
     if (pool === null) throw new Error("TEST_DATABASE_URL is required");
@@ -35,6 +35,88 @@ describe.skipIf(connectionString === undefined)("D14 first administrator bootstr
       "SELECT token_digest FROM bootstrap_tokens",
     );
     expect(stored.rows[0]?.token_digest).not.toBe(rawToken);
+    const durable = await pool.query<{
+      actor_id: string;
+      action: string;
+      target_type: string;
+      target_id: string;
+      ip: string | null;
+      user_agent: string | null;
+      payload: Record<string, unknown>;
+    }>(
+      `SELECT a.actor_id,a.action,a.target_type,a.target_id,a.ip,a.user_agent,o.payload
+       FROM audit_events a JOIN outbox o ON o.type = 'identity.first_admin_bootstrapped'`,
+    );
+    expect(durable.rows).toHaveLength(1);
+    expect(JSON.stringify(durable.rows[0])).not.toContain(rawToken);
+    expect(JSON.stringify(durable.rows[0])).not.toContain("password");
+  });
+
+  it("serializes two different valid tokens racing on an empty platform", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    await clearState(pool);
+    const bootstrap = new FirstAdminBootstrap(createDb(pool));
+    const email = Email.from(`owner-${crypto.randomUUID()}@example.com`);
+    const tokens = [crypto.randomUUID(), crypto.randomUUID()] as const;
+    for (const rawToken of tokens) {
+      await bootstrap.createToken({ email, rawToken, expiresAt: new Date("2026-08-13T00:00:00Z") });
+    }
+    const settled = await Promise.allSettled(
+      tokens.map((rawToken) =>
+        bootstrap.claim({ rawToken, verifiedEmail: email, now: new Date("2026-08-12T00:00:00Z") }),
+      ),
+    );
+    const values = settled.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : [],
+    );
+    expect(settled.filter((result) => result.status === "rejected")).toHaveLength(0);
+    expect(values.filter((result) => result.kind === "created")).toHaveLength(1);
+    expect(values.filter((result) => result.kind === "rejected")).toHaveLength(1);
+  });
+
+  it("rolls every effect back when bootstrap fails after user creation", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    await clearState(pool);
+    const bootstrap = new FirstAdminBootstrap(createDb(pool));
+    const email = Email.from(`owner-${crypto.randomUUID()}@example.com`);
+    const rawToken = crypto.randomUUID();
+    await bootstrap.createToken({ email, rawToken, expiresAt: new Date("2026-08-13T00:00:00Z") });
+
+    await pool.query(`CREATE OR REPLACE FUNCTION fail_admin_insert() RETURNS trigger AS $$
+      BEGIN RAISE EXCEPTION 'injected bootstrap failure'; END; $$ LANGUAGE plpgsql`);
+    await pool.query(`CREATE TRIGGER fail_admin_insert BEFORE INSERT ON platform_administrators
+      FOR EACH ROW EXECUTE FUNCTION fail_admin_insert()`);
+    try {
+      let rejected = false;
+      try {
+        await bootstrap.claim({
+          rawToken,
+          verifiedEmail: email,
+          now: new Date("2026-08-12T00:00:00Z"),
+        });
+      } catch (error) {
+        rejected = error instanceof Error;
+      }
+      expect(rejected).toBe(true);
+    } finally {
+      await pool.query("DROP TRIGGER fail_admin_insert ON platform_administrators");
+      await pool.query("DROP FUNCTION fail_admin_insert() ");
+    }
+    const counts = await pool.query<{
+      users: number;
+      admins: number;
+      consumed: number;
+      audits: number;
+      envelopes: number;
+    }>(
+      `SELECT
+        (SELECT count(*)::int FROM users) users,
+        (SELECT count(*)::int FROM platform_administrators) admins,
+        (SELECT count(*)::int FROM bootstrap_tokens WHERE consumed_at IS NOT NULL) consumed,
+        (SELECT count(*)::int FROM audit_events) audits,
+        (SELECT count(*)::int FROM outbox) envelopes`,
+    );
+    expect(counts.rows[0]).toEqual({ users: 0, admins: 0, consumed: 0, audits: 0, envelopes: 0 });
   });
 
   it.each(["wrong_email", "expired", "replay", "non_empty"] as const)(
