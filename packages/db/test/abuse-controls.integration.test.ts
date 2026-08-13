@@ -96,4 +96,16 @@ describe.skipIf(connectionString === undefined)("shared abuse controls", () => {
       kind: "limited",
     });
   });
+
+  it("fails closed when the real pool is closed", async () => {
+    if (connectionString === undefined) throw new Error("TEST_DATABASE_URL is required");
+    const closedPool = createDbPool(connectionString);
+    await closedPool.end();
+    const limiter = new PostgresRateLimitPort(createDb(closedPool));
+    expect(
+      await limiter.consume({ action: "sign_in", key: "account", source: "source" }),
+    ).toMatchObject({
+      kind: "limited",
+    });
+  });
 });

@@ -1,4 +1,5 @@
-import { PostgresRateLimitPort } from "@labpics/db";
+import { PostgresIdentityAdapter, PostgresRateLimitPort, PostgresUnitOfWork } from "@labpics/db";
+import { createIdentityUseCases } from "@labpics/domain";
 import { createApp } from "./app";
 import { createBetterAuthPort } from "./auth/better-auth.adapter";
 import { createBootstrapControl } from "./bootstrap-control";
@@ -32,12 +33,37 @@ const auth = createBetterAuthPort({
   trustedOrigins: config.corsAllowedOrigins,
 });
 
+const rateLimit = database === null ? undefined : new PostgresRateLimitPort(database.db);
+const lifecycleAdapter = database === null ? undefined : new PostgresIdentityAdapter();
+const lifecycleUseCases =
+  database === null || lifecycleAdapter === undefined || rateLimit === undefined
+    ? undefined
+    : createIdentityUseCases({
+        repository: lifecycleAdapter,
+        credentials: lifecycleAdapter,
+        clock: { now: () => new Date() },
+        tokens: {
+          issue: async () => ({
+            raw: "transport-hidden",
+            digest: "transport-hidden",
+            expiresAt: new Date(),
+          }),
+          digest: async (raw) => raw,
+        },
+        notifications: { enqueue: async () => undefined },
+        rateLimit,
+        audit: lifecycleAdapter,
+        outbox: lifecycleAdapter,
+        protocolRevocation: lifecycleAdapter,
+        unitOfWork: new PostgresUnitOfWork(database.db),
+      });
 const app = createApp({
   config,
   logger,
   database,
   auth,
-  rateLimit: database === null ? undefined : new PostgresRateLimitPort(database.db),
+  rateLimit,
+  lifecycleUseCases,
 });
 
 const server = Bun.serve({
