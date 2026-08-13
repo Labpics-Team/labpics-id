@@ -9,6 +9,7 @@ export const UNIFORM_ACCOUNT_RESPONSE = {
 
 export interface LifecycleUseCases {
   requestPasswordReset(command: { readonly email: Email }): Promise<unknown>;
+  resendVerification(command: { readonly email: Email }): Promise<unknown>;
 }
 
 export function lifecycleRoutes(limiter?: RateLimitPort, useCases?: LifecycleUseCases) {
@@ -34,6 +35,10 @@ export function lifecycleRoutes(limiter?: RateLimitPort, useCases?: LifecycleUse
           body.email ?? "missing",
           c.req.header("x-forwarded-for") ?? "unknown",
         );
+      }
+      if (useCases !== undefined && body.email !== undefined) {
+        const { Email } = await import("@labpics/domain");
+        await useCases.resendVerification({ email: Email.from(body.email) });
       }
       return c.json(UNIFORM_ACCOUNT_RESPONSE.body, UNIFORM_ACCOUNT_RESPONSE.status);
     });

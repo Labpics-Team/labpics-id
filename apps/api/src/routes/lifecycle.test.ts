@@ -27,6 +27,7 @@ describe("anti-enumeration transport contract", () => {
             calls.push(parsed.toString());
             return { kind: "accepted", value: undefined };
           },
+          resendVerification: async () => ({ kind: "accepted" }),
         },
       );
       const response = await app.request("/api/v1/password-reset/request", {

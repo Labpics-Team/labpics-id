@@ -1,4 +1,4 @@
-import { type Email, type UserId, userId } from "@labpics/domain";
+import { type Email, type RateLimitPort, type UserId, userId } from "@labpics/domain";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import type { Database } from "./client";
 import { auditEvents, bootstrapTokens, outbox, platformAdministrators, users } from "./schema";
@@ -15,9 +15,11 @@ export type ClaimBootstrapResult =
 
 export class FirstAdminBootstrap {
   private readonly db: Database;
+  private readonly rateLimit: RateLimitPort | undefined;
 
-  constructor(db: Database) {
+  constructor(db: Database, rateLimit?: RateLimitPort) {
     this.db = db;
+    this.rateLimit = rateLimit;
   }
 
   async createToken(command: CreateBootstrapTokenCommand): Promise<void> {
@@ -34,6 +36,12 @@ export class FirstAdminBootstrap {
     readonly verifiedEmail: Email;
     readonly now: Date;
   }): Promise<ClaimBootstrapResult> {
+    const decision = await this.rateLimit?.consume({
+      action: "bootstrap_claim",
+      key: input.verifiedEmail.toString(),
+      source: "bootstrap-control",
+    });
+    if (decision?.kind === "limited") return { kind: "rejected" };
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(814245021)`);
       const [identityCount, adminCount] = await Promise.all([

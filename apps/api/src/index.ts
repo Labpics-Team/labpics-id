@@ -1,5 +1,5 @@
 import { PostgresIdentityAdapter, PostgresRateLimitPort, PostgresUnitOfWork } from "@labpics/db";
-import { createIdentityUseCases } from "@labpics/domain";
+import { createIdentityUseCases, verificationResendBudget } from "@labpics/domain";
 import { createApp } from "./app";
 import { createBetterAuthPort } from "./auth/better-auth.adapter";
 import { createBootstrapControl } from "./bootstrap-control";
@@ -12,12 +12,15 @@ const logger = createLogger(config.logLevel);
 
 const database =
   config.databaseUrl !== undefined ? createDatabaseConnection(config.databaseUrl, logger) : null;
+const rateLimit = database === null ? undefined : new PostgresRateLimitPort(database.db);
+const composedRateLimit = rateLimit;
 createBootstrapControl(
   {
     enabled: process.env.FIRST_ADMIN_BOOTSTRAP_ENABLED === "true",
     verifiedEmail: process.env.FIRST_ADMIN_BOOTSTRAP_EMAIL,
   },
   database,
+  rateLimit,
 );
 if (config.authSecret === undefined) {
   throw new Error(
@@ -33,7 +36,6 @@ const auth = createBetterAuthPort({
   trustedOrigins: config.corsAllowedOrigins,
 });
 
-const rateLimit = database === null ? undefined : new PostgresRateLimitPort(database.db);
 const lifecycleAdapter = database === null ? undefined : new PostgresIdentityAdapter();
 const lifecycleUseCases =
   database === null || lifecycleAdapter === undefined || rateLimit === undefined
@@ -63,7 +65,14 @@ const app = createApp({
   database,
   auth,
   rateLimit,
-  lifecycleUseCases,
+  lifecycleUseCases:
+    lifecycleUseCases === undefined || composedRateLimit === undefined
+      ? undefined
+      : {
+          requestPasswordReset: lifecycleUseCases.requestPasswordReset.bind(lifecycleUseCases),
+          resendVerification: async ({ email }) =>
+            verificationResendBudget({ rateLimit: composedRateLimit }, email.toString(), "api"),
+        },
 });
 
 const server = Bun.serve({

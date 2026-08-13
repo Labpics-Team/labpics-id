@@ -87,6 +87,29 @@ describe.skipIf(connectionString === undefined)("shared abuse controls", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("limits repeated bootstrap claim attempts through the production bootstrap service", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const { FirstAdminBootstrap } = await import("../src");
+    const limiter = new PostgresRateLimitPort(
+      createDb(pool),
+      () => new Date("2026-08-12T00:00:00Z"),
+    );
+    const bootstrap = new FirstAdminBootstrap(createDb(pool), limiter);
+    const { Email } = await import("@labpics/domain");
+    const email = Email.from(`bootstrap-${crypto.randomUUID()}@example.com`);
+    for (let index = 0; index < 4; index += 1) {
+      await bootstrap.claim({
+        rawToken: `invalid-${index}`,
+        verifiedEmail: email,
+        now: new Date("2026-08-12T00:00:00Z"),
+      });
+    }
+    const stored = await pool.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM auth_rate_limits WHERE action='bootstrap_claim'",
+    );
+    expect(stored.rows[0]?.count).toBeGreaterThan(0);
+  });
+
   it("fails closed when the shared store is unavailable", async () => {
     if (pool === null) throw new Error("TEST_DATABASE_URL is required");
     const limiter = new PostgresRateLimitPort(createDb(pool), undefined, async () => {
