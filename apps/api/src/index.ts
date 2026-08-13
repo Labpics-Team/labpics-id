@@ -1,3 +1,4 @@
+import { PostgresRateLimitPort } from "@labpics/db";
 import { createApp } from "./app";
 import { createBetterAuthPort } from "./auth/better-auth.adapter";
 import { loadConfig } from "./config";
@@ -23,7 +24,13 @@ const auth = createBetterAuthPort({
   trustedOrigins: config.corsAllowedOrigins,
 });
 
-const app = createApp({ config, logger, database, auth });
+const app = createApp({
+  config,
+  logger,
+  database,
+  auth,
+  rateLimit: database === null ? undefined : new PostgresRateLimitPort(database.db),
+});
 
 const server = Bun.serve({
   hostname: config.host,

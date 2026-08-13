@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { createDb, createDbPool, PostgresRateLimitPort } from "../src";
@@ -10,6 +10,9 @@ describe.skipIf(connectionString === undefined)("shared abuse controls", () => {
   beforeAll(async () => {
     if (pool === null) throw new Error("TEST_DATABASE_URL is required");
     await migrate(createDb(pool), { migrationsFolder: join(import.meta.dir, "..", "drizzle") });
+  });
+  beforeEach(async () => {
+    await pool?.query("TRUNCATE auth_rate_limits, audit_events, outbox");
   });
   afterAll(async () => pool?.end());
 
@@ -23,6 +26,65 @@ describe.skipIf(connectionString === undefined)("shared abuse controls", () => {
     expect(await second.consume({ action: "sign_in", key })).toEqual({ kind: "allowed" });
     expect(await first.consume({ action: "sign_in", key })).toEqual({ kind: "allowed" });
     expect(await second.consume({ action: "sign_in", key })).toMatchObject({ kind: "limited" });
+  });
+
+  it("recovers after lockout expiry", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    let now = new Date("2026-08-12T00:00:00Z");
+    const limiter = new PostgresRateLimitPort(createDb(pool), () => now);
+    const key = crypto.randomUUID();
+    for (let index = 0; index < 4; index += 1) {
+      await limiter.consume({ action: "sign_in", key, source: "source-a" });
+    }
+    expect(await limiter.consume({ action: "sign_in", key, source: "source-a" })).toMatchObject({
+      kind: "limited",
+    });
+    now = new Date("2026-08-12T00:16:00Z");
+    expect(await limiter.consume({ action: "sign_in", key, source: "source-a" })).toEqual({
+      kind: "allowed",
+    });
+  });
+
+  it("prevents one source from globally locking a victim while account dimension limits distribution", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const limiter = new PostgresRateLimitPort(
+      createDb(pool),
+      () => new Date("2026-08-12T00:00:00Z"),
+    );
+    const victim = `victim-${crypto.randomUUID()}@example.com`;
+    for (let index = 0; index < 4; index += 1)
+      await limiter.consume({ action: "sign_in", key: victim, source: "attacker-a" });
+    expect(
+      await limiter.consume({ action: "sign_in", key: victim, source: "legitimate-b" }),
+    ).toEqual({ kind: "allowed" });
+    for (const source of ["c", "d", "e"])
+      await limiter.consume({ action: "sign_in", key: victim, source });
+    expect(
+      await limiter.consume({ action: "sign_in", key: victim, source: "legitimate-b" }),
+    ).toMatchObject({ kind: "limited" });
+  });
+
+  it("stores only action-bound digests and writes lockout audit plus outbox", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const limiter = new PostgresRateLimitPort(
+      createDb(pool),
+      () => new Date("2026-08-12T00:00:00Z"),
+    );
+    const email = `raw-${crypto.randomUUID()}@example.com`;
+    for (let index = 0; index < 4; index += 1)
+      await limiter.consume({ action: "password_reset", key: email, source: "source" });
+    const raw = await pool.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM auth_rate_limits WHERE concat_ws(' ',action,key_digest) LIKE $1",
+      [`%${email}%`],
+    );
+    expect(raw.rows[0]?.count).toBe(0);
+    expect(
+      (await pool.query("SELECT 1 FROM audit_events WHERE action='identity.auth_lockout'"))
+        .rowCount,
+    ).toBeGreaterThan(0);
+    expect(
+      (await pool.query("SELECT 1 FROM outbox WHERE type='identity.auth_lockout'")).rowCount,
+    ).toBeGreaterThan(0);
   });
 
   it("fails closed when the shared store is unavailable", async () => {
