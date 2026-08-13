@@ -2,6 +2,7 @@ import type { productAccess as productAccessTable } from "./access";
 import type { auditEvents as auditEventsTable } from "./audit";
 import type { sessions, users } from "./auth";
 
+export * from "./abuse";
 export * from "./access";
 export * from "./audit";
 export * from "./auth";
