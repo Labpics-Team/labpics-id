@@ -110,6 +110,29 @@ describe.skipIf(connectionString === undefined)("shared abuse controls", () => {
     expect(stored.rows[0]?.count).toBeGreaterThan(0);
   });
 
+  it("rejects bootstrap claim immediately when limiter is already limited", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const before = await pool.query<{ users: number; admins: number }>(
+      "SELECT (SELECT count(*)::int FROM users) users, (SELECT count(*)::int FROM platform_administrators) admins",
+    );
+    const { FirstAdminBootstrap } = await import("../src");
+    const bootstrap = new FirstAdminBootstrap(createDb(pool), {
+      consume: async () => ({ kind: "limited", retryAt: new Date("2026-08-13T00:15:00Z") }),
+    });
+    const { Email } = await import("@labpics/domain");
+    const email = Email.from(`limited-${crypto.randomUUID()}@example.com`);
+    const result = await bootstrap.claim({
+      rawToken: "invalid",
+      verifiedEmail: email,
+      now: new Date("2026-08-13T00:00:00Z"),
+    });
+    expect(result).toEqual({ kind: "rejected" });
+    const state = await pool.query<{ users: number; admins: number }>(
+      "SELECT (SELECT count(*)::int FROM users) users, (SELECT count(*)::int FROM platform_administrators) admins",
+    );
+    expect(state.rows[0]).toEqual(before.rows[0]);
+  });
+
   it("fails closed when the shared store is unavailable", async () => {
     if (pool === null) throw new Error("TEST_DATABASE_URL is required");
     const limiter = new PostgresRateLimitPort(createDb(pool), undefined, async () => {
