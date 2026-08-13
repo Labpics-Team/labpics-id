@@ -36,6 +36,13 @@
       "when": 1786576068588,
       "tag": "0004_smooth_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786577110000,
+      "tag": "0005_talented_korvac",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ import { requestId } from "./middleware/request-id";
 import { requestLogger } from "./middleware/request-logger";
 import { timeout } from "./middleware/timeout";
 import { healthRoutes } from "./routes/health";
+import { lifecycleRoutes } from "./routes/lifecycle";
 import { readyRoutes } from "./routes/ready";
 import { v1Routes } from "./routes/v1";
 import type { AppVariables } from "./types";
@@ -31,6 +32,7 @@ export function createApp(deps: AppDeps) {
   app.onError(errorEnvelope(logger));
 
   app.route("/", healthRoutes());
+  app.route("/", lifecycleRoutes());
   app.route("/", readyRoutes(database, logger));
   app.route("/", v1Routes());
 
