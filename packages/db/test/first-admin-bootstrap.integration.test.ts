@@ -36,15 +36,20 @@ describe.skipIf(connectionString === undefined).serial("D14 first administrator 
     );
     expect(stored.rows[0]?.token_digest).not.toBe(rawToken);
     const durable = await pool.query<{
+      id: string;
       actor_id: string;
       action: string;
       target_type: string;
       target_id: string;
       ip: string | null;
       user_agent: string | null;
+      occurred_at: Date;
+      prev_hash: string | null;
+      hash: string;
       payload: Record<string, unknown>;
     }>(
-      `SELECT a.actor_id,a.action,a.target_type,a.target_id,a.ip,a.user_agent,o.payload
+      `SELECT a.id,a.actor_id,a.action,a.target_type,a.target_id,a.ip,a.user_agent,
+              a.occurred_at,a.prev_hash,a.hash,o.payload
        FROM audit_events a JOIN outbox o ON o.type = 'identity.first_admin_bootstrapped'`,
     );
     expect(durable.rows).toHaveLength(1);
