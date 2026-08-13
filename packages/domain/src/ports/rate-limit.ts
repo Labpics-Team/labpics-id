@@ -1,14 +1,19 @@
 export type IdentityAction =
   | "registration"
   | "verification"
+  | "verification_resend"
+  | "verification_consume"
   | "sign_in"
   | "password_reset"
+  | "password_reset_consume"
+  | "bootstrap_claim"
   | "deactivation"
   | "session_management";
 
 export interface RateLimitAttempt {
   readonly action: IdentityAction;
   readonly key: string;
+  readonly source?: string;
 }
 
 export type RateLimitDecision =

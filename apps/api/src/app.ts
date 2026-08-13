@@ -1,3 +1,4 @@
+import type { RateLimitPort } from "@labpics/domain";
 import { Hono } from "hono";
 import type { AuthPort } from "./auth/port";
 import type { AppConfig } from "./config";
@@ -19,10 +20,11 @@ export interface AppDeps {
   readonly logger: Logger;
   readonly database: DatabaseConnection | null;
   readonly auth: AuthPort;
+  readonly rateLimit: RateLimitPort | undefined;
 }
 
 export function createApp(deps: AppDeps) {
-  const { config, logger, database, auth } = deps;
+  const { config, logger, database, auth, rateLimit } = deps;
   const app = new Hono<{ Variables: AppVariables }>();
 
   app.use("*", requestId());
@@ -32,7 +34,7 @@ export function createApp(deps: AppDeps) {
   app.onError(errorEnvelope(logger));
 
   app.route("/", healthRoutes());
-  app.route("/", lifecycleRoutes());
+  app.route("/", lifecycleRoutes(rateLimit));
   app.route("/", readyRoutes(database, logger));
   app.route("/", v1Routes());
 
