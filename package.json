@@ -18,6 +18,8 @@
     "lint:fix": "biome check --write .",
     "build": "bun run --filter './apps/*' build && bun run --filter './packages/*' build",
     "test": "bun test --timeout 120000",
+    "security:proof": "bun scripts/security-proof/run-security-proof.ts",
+    "gate:ch02": "bun scripts/security-proof/chapter-gate.ts",
     "check:domain-gate": "bun run --cwd packages/domain check:domain-gate",
     "db:generate": "bun --cwd packages/db run db:generate",
     "db:migrate": "bun --cwd packages/db run db:migrate",
