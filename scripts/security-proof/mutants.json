@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "postgresImage": "postgres:17@sha256:7958605b474b3d264a969cb3a123d6aa00ad1e1fe9da8a69984dabb704d93317",
+  "mutants": [
+    {
+      "id": "M01-atomic-verification-token-consumption",
+      "guard": "Single-use verification/reset tokens are consumed atomically (DELETE ... RETURNING); a read-only lookup must never pass for consumption",
+      "origin": "task",
+      "sourceOfTruth": "PR #12/#14 — PostgresIdentityAdapter.consumeToken",
+      "file": "packages/db/src/identity-adapter.ts",
+      "find": "    const rows = await transactionOf(context)\n      .delete(verificationTokens)\n      .where(\n        and(\n          eq(verificationTokens.value, input.digest),\n          gt(verificationTokens.expiresAt, input.now),\n        ),\n      )\n      .returning({ identifier: verificationTokens.identifier });",
+      "replace": "    const rows = await transactionOf(context)\n      .select({ identifier: verificationTokens.identifier })\n      .from(verificationTokens)\n      .where(\n        and(\n          eq(verificationTokens.value, input.digest),\n          gt(verificationTokens.expiresAt, input.now),\n        ),\n      );",
+      "testFile": "packages/db/test/account-lifecycle.integration.test.ts",
+      "expectedFailingTests": [
+        "allows exactly one concurrent verification token consumer",
+        "normalizes uniqueness and rejects sign-in until single-use verification"
+      ],
+      "runs": 1
+    },
+    {
+      "id": "M02-refresh-family-replay-revocation",
+      "guard": "Replay of an already-used refresh credential revokes the entire session family and emits the security event",
+      "origin": "task",
+      "sourceOfTruth": "PR #13 — PostgresSessionSecurityAdapter.rotate replay branch",
+      "file": "packages/db/src/session-security-adapter.ts",
+      "find": "      if (claimed.length === 0) {\n        await this.revokeFamilyIn(tx, credential.familyId, now);\n        return { kind: \"replay\", familyId: credential.familyId };\n      }",
+      "replace": "      if (claimed.length === 0) {\n        return { kind: \"replay\", familyId: credential.familyId };\n      }",
+      "testFile": "packages/db/test/session-security.integration.test.ts",
+      "expectedFailingTests": [
+        "rotates once and revokes the whole family on sequential replay",
+        "permits one concurrent redemption and then revokes the family"
+      ],
+      "runs": 1
+    },
+    {
+      "id": "M03-concurrent-redemption-single-winner",
+      "guard": "Concurrent redemption of one refresh credential admits exactly one winner via the atomic usedAt-is-null claim",
+      "origin": "task",
+      "sourceOfTruth": "PR #13 — PostgresSessionSecurityAdapter.rotate claim predicate",
+      "file": "packages/db/src/session-security-adapter.ts",
+      "find": "          and(\n            eq(sessionRefreshCredentials.id, credential.id),\n            isNull(sessionRefreshCredentials.usedAt),\n            gt(sessionRefreshCredentials.expiresAt, now),\n          ),",
+      "replace": "          and(\n            eq(sessionRefreshCredentials.id, credential.id),\n            gt(sessionRefreshCredentials.expiresAt, now),\n          ),",
+      "testFile": "packages/db/test/session-security.integration.test.ts",
+      "expectedFailingTests": [
+        "permits one concurrent redemption and then revokes the family",
+        "rotates once and revokes the whole family on sequential replay"
+      ],
+      "runs": 1
+    },
+    {
+      "id": "M04-deactivated-subject-mediation",
+      "guard": "Deactivated subjects are mediated at the use-case boundary: session listing is rejected with subject_deactivated",
+      "origin": "task",
+      "sourceOfTruth": "PR #12/#14 — createIdentityUseCases.listSessions state check",
+      "file": "packages/domain/src/identity/use-cases.ts",
+      "find": "        const subject = await deps.repository.findSubjectById(context, subjectId);\n        if (subject === null) return rejected(\"subject_not_found\");\n        if (subject.state === \"deactivated\") return rejected(\"subject_deactivated\");\n        return accepted(await deps.repository.listSessions(context, subjectId));",
+      "replace": "        const subject = await deps.repository.findSubjectById(context, subjectId);\n        if (subject === null) return rejected(\"subject_not_found\");\n        return accepted(await deps.repository.listSessions(context, subjectId));",
+      "testFile": "packages/domain/test/identity-use-cases.contract.test.ts",
+      "expectedFailingTests": ["runs every use case through the in-memory adapter"],
+      "runs": 1
+    },
+    {
+      "id": "M05-unit-of-work-atomicity",
+      "guard": "PostgresUnitOfWork executes all participating writes in one transaction; a thrown error rolls every row back",
+      "origin": "task",
+      "sourceOfTruth": "PR #11/#12 — PostgresUnitOfWork.run",
+      "file": "packages/db/src/unit-of-work.ts",
+      "find": "  run<T>(work: (context: PostgresTransactionContext) => Promise<T>): Promise<T> {\n    return this.db.transaction((transaction) =>\n      work({ transactionId: crypto.randomUUID(), transaction }),\n    );\n  }",
+      "replace": "  run<T>(work: (context: PostgresTransactionContext) => Promise<T>): Promise<T> {\n    const transaction = this.db as unknown as DatabaseTransaction;\n    return work({ transactionId: crypto.randomUUID(), transaction });\n  }",
+      "testFile": "packages/db/test/unit-of-work.integration.test.ts",
+      "expectedFailingTests": [
+        "rolls every row back when work throws",
+        "rolls identity, audit, and outbox state back when work throws"
+      ],
+      "runs": 1
+    },
+    {
+      "id": "M06-transport-anti-enumeration",
+      "guard": "Lifecycle endpoints return one identical 202 envelope regardless of account existence; no path may reveal account state",
+      "origin": "task",
+      "sourceOfTruth": "PR #17 — lifecycleRoutes uniform response",
+      "file": "apps/api/src/routes/lifecycle.ts",
+      "find": "      if (useCases !== undefined && body.email !== undefined) {\n        const { Email } = await import(\"@labpics/domain\");\n        await useCases.requestPasswordReset({ email: Email.from(body.email) });\n      }\n      return c.json(UNIFORM_ACCOUNT_RESPONSE.body, UNIFORM_ACCOUNT_RESPONSE.status);",
+      "replace": "      if (useCases !== undefined && body.email !== undefined) {\n        const { Email } = await import(\"@labpics/domain\");\n        await useCases.requestPasswordReset({ email: Email.from(body.email) });\n        return c.json({ ok: true, message: `reset sent to ${body.email}` }, 200);\n      }\n      return c.json(UNIFORM_ACCOUNT_RESPONSE.body, UNIFORM_ACCOUNT_RESPONSE.status);",
+      "testFile": "apps/api/src/routes/lifecycle.test.ts",
+      "expectedFailingTests": ["returns identical full response and invokes use case"],
+      "runs": 1
+    },
+    {
+      "id": "M07-production-fallback-secret-rejection",
+      "guard": "Production composition fails closed on any known fallback BETTER_AUTH_SECRET value",
+      "origin": "task",
+      "sourceOfTruth": "PR #11 — loadConfig FALLBACK_SECRETS rejection",
+      "file": "apps/api/src/config.ts",
+      "find": "  if (nodeEnv === \"production\" && authSecret !== undefined && FALLBACK_SECRETS.has(authSecret)) {\n    throw new ConfigError(\"BETTER_AUTH_SECRET must not use a known fallback value in production\");\n  }\n",
+      "replace": "",
+      "testFile": "apps/api/src/config.test.ts",
+      "expectedFailingTests": ["rejects the known fallback secret"],
+      "runs": 1
+    },
+    {
+      "id": "M08-tenant-safe-composite-role-fk",
+      "guard": "member(organization_id, role_id) composite FK onto role(organization_id, id) rejects cross-tenant role assignment in real PostgreSQL",
+      "origin": "task",
+      "sourceOfTruth": "PR #11 — migration 0001 member_organization_role_fk",
+      "file": "packages/db/drizzle/0001_common_adam_destine.sql",
+      "find": "ALTER TABLE \"member\" ADD CONSTRAINT \"member_organization_role_fk\" FOREIGN KEY (\"organization_id\",\"role_id\") REFERENCES \"public\".\"role\"(\"organization_id\",\"id\") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint",
+      "replace": "SELECT 1;--> statement-breakpoint",
+      "testFile": "packages/db/test/migrate.test.ts",
+      "expectedFailingTests": ["applies migrations and creates every bootstrap table"],
+      "runs": 1
+    },
+    {
+      "id": "M09-bootstrap-advisory-lock-race",
+      "guard": "First-admin bootstrap serializes concurrent claims with pg_advisory_xact_lock so an empty platform admits exactly one administrator",
+      "origin": "task",
+      "sourceOfTruth": "PR #15 — FirstAdminBootstrap.claim advisory lock",
+      "file": "packages/db/src/first-admin-bootstrap.ts",
+      "find": "    return this.db.transaction(async (tx) => {\n      await tx.execute(sql`SELECT pg_advisory_xact_lock(814245021)`);\n",
+      "replace": "    return this.db.transaction(async (tx) => {\n",
+      "testFile": "packages/db/test/first-admin-bootstrap.integration.test.ts",
+      "expectedFailingTests": ["serializes two different valid tokens racing on an empty platform"],
+      "runs": 3
+    },
+    {
+      "id": "M10-account-plus-source-limiter-denial-protection",
+      "guard": "Rate limiting keeps independent account and source dimensions so one hostile source cannot deny a victim account globally",
+      "origin": "task",
+      "sourceOfTruth": "PR #17 — PostgresRateLimitPort.consume dimension digests",
+      "file": "packages/db/src/postgres-rate-limit.ts",
+      "find": "    const sourceDigest = digest(`${attempt.action}:source:${attempt.source ?? \"unknown\"}`);",
+      "replace": "    const sourceDigest = digest(`${attempt.action}:source:${attempt.key}`);",
+      "testFile": "packages/db/test/abuse-controls.integration.test.ts",
+      "expectedFailingTests": [
+        "prevents one source from globally locking a victim while account dimension limits distribution"
+      ],
+      "runs": 1
+    },
+    {
+      "id": "M11-rotate-ignores-revoked-or-deactivated",
+      "guard": "Refresh rotation refuses revoked sessions and deactivated subjects before any credential claim",
+      "origin": "review",
+      "sourceOfTruth": "PR #13 review — rotate-revocation guard (CodeRabbit comment 3765565796, Oracle CRITICAL)",
+      "file": "packages/db/src/session-security-adapter.ts",
+      "find": "      if (row === undefined) return { kind: \"invalid\" };\n      if (row.revokedAt !== null || row.deactivatedAt !== null) return { kind: \"revoked\" };",
+      "replace": "      if (row === undefined) return { kind: \"invalid\" };",
+      "testFile": "packages/db/test/session-security.integration.test.ts",
+      "expectedFailingTests": [
+        "rejects rotation after password-change logout-all",
+        "rejects rotation after subject deactivation"
+      ],
+      "runs": 1
+    },
+    {
+      "id": "M12-rawtoken-audit-hash-leak",
+      "guard": "The bootstrap raw token never leaks into the audit/outbox surface (including the hash column)",
+      "origin": "review",
+      "sourceOfTruth": "PR #15 review — complete bootstrap audit surface; mutation to raw hash proven red",
+      "file": "packages/db/src/first-admin-bootstrap.ts",
+      "find": "      await tx.insert(auditEvents).values({\n        actorId: subjectId,\n        action: \"identity.first_admin_bootstrapped\",\n        targetType: \"subject\",\n        targetId: subjectId,\n        occurredAt: input.now,\n        hash: crypto.randomUUID(),\n      });",
+      "replace": "      await tx.insert(auditEvents).values({\n        actorId: subjectId,\n        action: \"identity.first_admin_bootstrapped\",\n        targetType: \"subject\",\n        targetId: subjectId,\n        occurredAt: input.now,\n        hash: input.rawToken,\n      });",
+      "testFile": "packages/db/test/first-admin-bootstrap.integration.test.ts",
+      "expectedFailingTests": [
+        "creates exactly one verified administrator under concurrent claims"
+      ],
+      "runs": 1
+    },
+    {
+      "id": "M13-limiter-unawaited-async-rejection",
+      "guard": "Rate limiter awaits async store failures and converts them into a fail-closed limited decision; rejection must not escape unawaited",
+      "origin": "review",
+      "sourceOfTruth": "PR #16/#17 review — await real store failures (CodeRabbit comment 3771491048)",
+      "file": "packages/db/src/postgres-rate-limit.ts",
+      "find": "    try {\n      await this.availabilityCheck();\n      return await this.db.transaction(async (tx) => {",
+      "replace": "    try {\n      void this.availabilityCheck().catch(() => undefined);\n      return await this.db.transaction(async (tx) => {",
+      "testFile": "packages/db/test/abuse-controls.integration.test.ts",
+      "expectedFailingTests": ["fails closed when the shared store is unavailable"],
+      "runs": 1
+    }
+  ]
+}
