@@ -11,7 +11,9 @@
  */
 import { join, resolve } from "node:path";
 
-const SKIP_SUMMARY_RE = /(?<count>\d+)\s+(?:skip|todo)/;
+// Bun prints summary lines like " 3 skip" / " 1 todo"; only a non-zero count
+// on its own summary line is a violation ("0 skip" is a healthy summary).
+const SKIP_SUMMARY_RE = /^\s*[1-9]\d*\s+(?:skip|todo)\b/m;
 const STEP_TIMEOUT_MS = 900_000;
 
 class GateError extends Error {
@@ -82,14 +84,20 @@ async function smokeBuiltComposition(): Promise<void> {
     stdout: "pipe",
     stderr: "pipe",
   });
+  // Drain both pipes eagerly: an unread pipe can fill and block the child,
+  // and the captured output is the only startup-failure evidence.
+  const stdoutText = new Response(server.stdout).text();
+  const stderrText = new Response(server.stderr).text();
+  const smoke = async (path: string) =>
+    fetch(`http://127.0.0.1:${port}${path}`, { signal: AbortSignal.timeout(5_000) });
   try {
     const deadline = Date.now() + 30_000;
     let lastError = "service did not answer before the deadline";
     while (Date.now() < deadline) {
       try {
-        const health = await fetch(`http://127.0.0.1:${port}/health`);
-        const ready = await fetch(`http://127.0.0.1:${port}/ready`);
-        const ping = await fetch(`http://127.0.0.1:${port}/api/v1/ping`);
+        const health = await smoke("/health");
+        const ready = await smoke("/ready");
+        const ping = await smoke("/api/v1/ping");
         if (health.status === 200 && ready.status === 200 && ping.status === 200) {
           const readyBody = (await ready.json()) as { status: string; database: string };
           if (readyBody.status !== "ready" || readyBody.database !== "up") {
@@ -105,6 +113,9 @@ async function smokeBuiltComposition(): Promise<void> {
       }
       await Bun.sleep(500);
     }
+    server.kill();
+    console.error(await stdoutText);
+    console.error(await stderrText);
     throw new GateError(`live smoke failed against the built composition: ${lastError}`);
   } finally {
     server.kill();

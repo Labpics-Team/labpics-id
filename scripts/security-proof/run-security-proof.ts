@@ -146,12 +146,16 @@ function restoreMutant(copyRoot: string, repoRoot: string, mutant: Mutant): void
 interface TestRun {
   readonly exitCode: number;
   readonly output: string;
+  /** True when the pre-test migration failed: the run proves nothing then. */
+  readonly migrationFailed: boolean;
+  readonly migrationOutput: string;
 }
 
 function runNamedTests(copyRoot: string, testFile: string, databaseUrl: string): TestRun {
   // Migrations run from the (possibly mutated) copy through the workspace's
-  // own drizzle-kit path (same as CI), so schema mutants are exercised too; a
-  // migration failure surfaces through the test run below.
+  // own drizzle-kit path (same as CI), so schema mutants are exercised too.
+  // A migration failure is reported separately: tests failing on a missing
+  // schema must never be classified as a mutant kill.
   const migration = Bun.spawnSync(["bun", "run", "--cwd", "packages/db", "migrate"], {
     cwd: copyRoot,
     env: { ...process.env, DATABASE_URL: databaseUrl },
@@ -159,6 +163,10 @@ function runNamedTests(copyRoot: string, testFile: string, databaseUrl: string):
     stderr: "pipe",
     timeout: TEST_RUN_TIMEOUT_MS,
   });
+  const migrationOutput = `${migration.stdout.toString()}\n${migration.stderr.toString()}`;
+  if ((migration.exitCode ?? 1) !== 0) {
+    return { exitCode: 1, output: "", migrationFailed: true, migrationOutput };
+  }
   const result = Bun.spawnSync(["bun", "test", testFile, "--timeout", "120000"], {
     cwd: copyRoot,
     env: { ...process.env, TEST_DATABASE_URL: databaseUrl },
@@ -166,8 +174,12 @@ function runNamedTests(copyRoot: string, testFile: string, databaseUrl: string):
     stderr: "pipe",
     timeout: TEST_RUN_TIMEOUT_MS,
   });
-  const output = `${migration.stderr.toString()}\n${result.stdout.toString()}\n${result.stderr.toString()}`;
-  return { exitCode: result.exitCode ?? 1, output };
+  return {
+    exitCode: result.exitCode ?? 1,
+    output: `${result.stdout.toString()}\n${result.stderr.toString()}`,
+    migrationFailed: false,
+    migrationOutput,
+  };
 }
 
 function failedTestNames(output: string): readonly string[] {
@@ -191,13 +203,16 @@ async function withFreshDatabase<T>(
 ): Promise<T> {
   const databaseName = `secproof_${label}_${crypto.randomUUID().slice(0, 8)}`.replaceAll("-", "_");
   const admin = new SQL(adminUrl);
-  await admin.unsafe(`CREATE DATABASE "${databaseName}"`);
-  const databaseUrl = new URL(adminUrl);
-  databaseUrl.pathname = `/${databaseName}`;
   try {
-    return await work(databaseUrl.toString());
+    await admin.unsafe(`CREATE DATABASE "${databaseName}"`);
+    const databaseUrl = new URL(adminUrl);
+    databaseUrl.pathname = `/${databaseName}`;
+    try {
+      return await work(databaseUrl.toString());
+    } finally {
+      await admin.unsafe(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
+    }
   } finally {
-    await admin.unsafe(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
     await admin.close();
   }
 }
@@ -220,7 +235,7 @@ async function runControls(
         runNamedTests(copyRoot, testFile, databaseUrl),
       );
       green = run.exitCode === 0;
-      lastOutput = run.output;
+      lastOutput = run.migrationFailed ? run.migrationOutput : run.output;
     }
     if (!green) {
       console.error(lastOutput);
@@ -253,9 +268,15 @@ async function runMutant(
         runNamedTests(copyRoot, mutant.testFile, databaseUrl),
       );
       if (run.exitCode !== 0) {
-        const matched = matchExpectedFailure(run.output, mutant.expectedFailingTests);
+        // A failed migration proves nothing about test sensitivity: the named
+        // test never ran against the mutated behavior.
+        const matched = run.migrationFailed
+          ? null
+          : matchExpectedFailure(run.output, mutant.expectedFailingTests);
         if (matched === null) {
-          lastUnexpected = failedTestNames(run.output).join(" | ");
+          lastUnexpected = run.migrationFailed
+            ? `migration failed before tests ran: ${run.migrationOutput.slice(-400)}`
+            : failedTestNames(run.output).join(" | ");
           if (!unexpectedRetryUsed) {
             unexpectedRetryUsed = true;
             attempt -= 1;
