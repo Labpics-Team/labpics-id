@@ -2,6 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { ConfigError, loadConfig } from "./config";
 
 const validSecret = "unique-configured-secret-with-at-least-32-characters";
+const validBoundaryCredentials = JSON.stringify([
+  {
+    id: "protocol-workload",
+    secret: "test-only-not-a-secret-".padEnd(48, "x"),
+    operations: ["subject.get"],
+  },
+]);
 
 describe("authentication configuration", () => {
   it("fails closed when production has no authentication secret", () => {
@@ -23,6 +30,7 @@ describe("authentication configuration", () => {
       BETTER_AUTH_PERSISTENCE: "postgres",
       DATABASE_URL: "postgresql://example.invalid/labpics",
       CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
+      PROTOCOL_BOUNDARY_CREDENTIALS: validBoundaryCredentials,
     });
 
     expect(config.authSecret).toBe(validSecret);
@@ -58,9 +66,32 @@ describe("authentication configuration", () => {
       BETTER_AUTH_PERSISTENCE: "postgres",
       DATABASE_URL: "postgresql://example.invalid/labpics",
       CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
+      PROTOCOL_BOUNDARY_CREDENTIALS: validBoundaryCredentials,
     });
 
     expect(config.authPersistence).toBe("postgres");
+  });
+
+  it("fails closed when production has no boundary credentials", () => {
+    expect(() =>
+      loadConfig({
+        NODE_ENV: "production",
+        BETTER_AUTH_SECRET: validSecret,
+        BETTER_AUTH_PERSISTENCE: "postgres",
+        DATABASE_URL: "postgresql://example.invalid/labpics",
+        CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it.each(["not-json", "{}", "[]"])("rejects malformed boundary credentials %s", (raw) => {
+    expect(() =>
+      loadConfig({
+        NODE_ENV: "test",
+        BETTER_AUTH_SECRET: validSecret,
+        PROTOCOL_BOUNDARY_CREDENTIALS: raw,
+      }),
+    ).toThrow(ConfigError);
   });
 
   it.each([

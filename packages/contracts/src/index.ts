@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+// boundary-auth is intentionally NOT re-exported here: it imports node:crypto
+// and must stay off the web bundle path. Consumers use the dedicated
+// "@labpics/contracts/boundary-auth" subpath export.
+export * from "./protocol-boundary.ts";
+
 /**
  * Shared wire contracts between apps/api and apps/web.
  * Everything crossing the HTTP boundary in either direction is typed here.
