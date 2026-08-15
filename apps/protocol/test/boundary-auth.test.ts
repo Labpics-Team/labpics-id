@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { describe, it } from "node:test";
+import { type BoundaryCredential, boundaryVersion } from "@labpics/contracts";
 import {
   authenticateBoundaryRequest,
   BOUNDARY_AUTH_SCHEME,
@@ -10,7 +11,6 @@ import {
   parseBoundaryCredentials,
   signBoundaryPayload,
 } from "@labpics/contracts/boundary-auth";
-import { type BoundaryCredential, boundaryVersion } from "@labpics/contracts";
 
 const SECRET = "test-only-not-a-secret-".padEnd(48, "x");
 
