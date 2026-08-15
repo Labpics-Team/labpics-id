@@ -1,12 +1,16 @@
 import type {
   ClientRegistryPort,
   ConsentPort,
+  InteractionPort,
   ProtocolArtifactModel,
   ProtocolArtifactPort,
   ProtocolArtifactPutOptions,
   ProtocolArtifactRecord,
   ProtocolClientRecord,
   ProtocolConsentRecord,
+  ProtocolInteractionDetails,
+  ProtocolInteractionResult,
+  ProtocolInteractionSession,
   ProtocolSigningKeyRecord,
   SigningKeyPort,
   TransactionContext,
@@ -27,7 +31,7 @@ import {
 import type { PostgresTransactionContext } from "./unit-of-work";
 
 export class PostgresProtocolAdapter
-  implements ClientRegistryPort, ConsentPort, SigningKeyPort, ProtocolArtifactPort
+  implements ClientRegistryPort, ConsentPort, SigningKeyPort, ProtocolArtifactPort, InteractionPort
 {
   private readonly db: Database;
 
@@ -346,6 +350,109 @@ export class PostgresProtocolAdapter
       if (deleted < batchSize) break;
     }
     return total;
+  }
+
+  // --- InteractionPort implementation ---
+  // Interaction state is stored as an "Interaction" artifact whose payload
+  // mirrors what oidc-provider's adapter interface expects: the uid is both
+  // the artifact id and the uid column, and the payload carries the
+  // structured fields the consent ceremony needs (client, scopes, subject).
+
+  async getInteractionDetails(
+    uid: string,
+    ctx?: TransactionContext,
+  ): Promise<ProtocolInteractionDetails | null> {
+    const artifact = await this.findArtifactByUid("Interaction", uid, ctx);
+    if (artifact === null) return null;
+    const p = artifact.payload;
+    const stringOrNull = (v: unknown): string | null => (typeof v === "string" ? v : null);
+    const stringArray = (v: unknown): readonly string[] =>
+      Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    return {
+      uid: artifact.uid ?? artifact.id,
+      clientId: stringOrNull(p.clientId) ?? "",
+      clientName: stringOrNull(p.clientName),
+      clientLogoUri: stringOrNull(p.clientLogoUri),
+      requestedScopes: stringArray(p.requestedScopes),
+      redirectUri: stringOrNull(p.redirectUri) ?? "",
+      nonce: stringOrNull(p.nonce),
+      state: stringOrNull(p.state),
+      subjectId: stringOrNull(p.subjectId),
+      sessionId: stringOrNull(p.sessionId),
+      resumeUrl: stringOrNull(p.resumeUrl),
+    };
+  }
+
+  async setInteractionSession(
+    uid: string,
+    session: ProtocolInteractionSession,
+    ctx?: TransactionContext,
+  ): Promise<void> {
+    const db = txOrDb(ctx, this.db);
+    // Merge session fields into the existing interaction payload.
+    const rows = await db
+      .select()
+      .from(protocolArtifacts)
+      .where(and(eq(protocolArtifacts.model, "Interaction"), eq(protocolArtifacts.uid, uid)))
+      .limit(1);
+    const row = rows[0];
+    const existing = (row?.payload as Record<string, unknown>) ?? {};
+    const merged: Record<string, unknown> = {
+      ...existing,
+      subjectId: session.subjectId,
+      sessionId: session.sessionId,
+    };
+    if (row) {
+      await db
+        .update(protocolArtifacts)
+        .set({ payload: merged })
+        .where(and(eq(protocolArtifacts.model, "Interaction"), eq(protocolArtifacts.uid, uid)));
+    } else {
+      await db.insert(protocolArtifacts).values({
+        model: "Interaction",
+        id: uid,
+        uid,
+        payload: merged,
+      });
+    }
+  }
+
+  async finishInteraction(
+    uid: string,
+    result: ProtocolInteractionResult,
+    mergeWithLastSubmission: boolean,
+    ctx?: TransactionContext,
+  ): Promise<void> {
+    const db = txOrDb(ctx, this.db);
+    const rows = await db
+      .select()
+      .from(protocolArtifacts)
+      .where(and(eq(protocolArtifacts.model, "Interaction"), eq(protocolArtifacts.uid, uid)))
+      .limit(1);
+    const row = rows[0];
+    const existing = (row?.payload as Record<string, unknown>) ?? {};
+    const merged: Record<string, unknown> = {
+      ...existing,
+      result: {
+        login: result.login,
+        consent: result.consent,
+      },
+      mergeWithLastSubmission,
+      finishedAt: new Date().toISOString(),
+    };
+    if (row) {
+      await db
+        .update(protocolArtifacts)
+        .set({ payload: merged })
+        .where(and(eq(protocolArtifacts.model, "Interaction"), eq(protocolArtifacts.uid, uid)));
+    } else {
+      await db.insert(protocolArtifacts).values({
+        model: "Interaction",
+        id: uid,
+        uid,
+        payload: merged,
+      });
+    }
   }
 }
 

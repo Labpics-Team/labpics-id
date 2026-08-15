@@ -30,12 +30,14 @@ function makeHandlers(putCalls: ProtocolArtifactPutOptions[] = []) {
     revokeArtifactsByGrantId: async () => 0,
     cleanupExpiredArtifacts: async () => 0,
   };
+
   return createProtocolBoundaryHandlers({
     unitOfWork,
     clientRegistry: {} as ClientRegistryPort,
     consent: {} as ConsentPort,
     signingKeys: {} as SigningKeyPort,
     artifacts,
+    pairwiseSecret: "test-secret",
   });
 }
 

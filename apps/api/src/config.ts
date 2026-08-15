@@ -21,6 +21,7 @@ export interface AppConfig {
   readonly requestTimeoutMs: number;
   readonly logLevel: LogLevel;
   readonly boundaryCredentials: readonly unknown[] | undefined;
+  readonly protocolPairwiseSecret: string | undefined;
 }
 
 const NODE_ENVS: readonly NodeEnv[] = ["development", "test", "production"];
@@ -139,6 +140,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (nodeEnv === "production" && boundaryCredentials === undefined) {
     throw new ConfigError("PROTOCOL_BOUNDARY_CREDENTIALS is required in production");
   }
+  const protocolPairwiseSecret =
+    env.PROTOCOL_PAIRWISE_SECRET?.trim() === "" ? undefined : env.PROTOCOL_PAIRWISE_SECRET?.trim();
+  if (nodeEnv === "production" && protocolPairwiseSecret === undefined) {
+    throw new ConfigError("PROTOCOL_PAIRWISE_SECRET is required in production");
+  }
+  if (protocolPairwiseSecret !== undefined && protocolPairwiseSecret.length < 32) {
+    throw new ConfigError("PROTOCOL_PAIRWISE_SECRET must contain at least 32 characters");
+  }
   return {
     nodeEnv,
     host: env.HOST?.trim() !== "" ? (env.HOST ?? "0.0.0.0") : "0.0.0.0",
@@ -151,5 +160,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     requestTimeoutMs: parsePositiveInt(env.REQUEST_TIMEOUT_MS, "REQUEST_TIMEOUT_MS", 10_000),
     logLevel: parseEnum(env.LOG_LEVEL, LOG_LEVELS, "LOG_LEVEL", "info"),
     boundaryCredentials,
+    protocolPairwiseSecret,
   };
 }

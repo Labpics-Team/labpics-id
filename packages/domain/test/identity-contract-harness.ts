@@ -1,6 +1,6 @@
 import { expect } from "bun:test";
-import type { IdentityUseCases } from "../src";
-import { Email } from "../src";
+import type { IdentityUseCases } from "@labpics/domain";
+import { Email } from "@labpics/domain";
 
 export interface IdentityContractHarness {
   readonly useCases: IdentityUseCases;

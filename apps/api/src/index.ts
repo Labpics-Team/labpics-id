@@ -68,12 +68,18 @@ const lifecycleUseCases =
 
 function composeProtocolHandlers(db: NonNullable<typeof database>["db"]) {
   const adapter = new PostgresProtocolAdapter(db);
+  if (config.protocolPairwiseSecret === undefined) {
+    throw new Error(
+      "PROTOCOL_PAIRWISE_SECRET must be configured before composing the protocol handlers",
+    );
+  }
   return createProtocolBoundaryHandlers({
     unitOfWork: new PostgresUnitOfWork(db),
     clientRegistry: adapter,
     consent: adapter,
     signingKeys: adapter,
     artifacts: adapter,
+    pairwiseSecret: config.protocolPairwiseSecret,
   });
 }
 const protocolHandlers = database === null ? undefined : composeProtocolHandlers(database.db);

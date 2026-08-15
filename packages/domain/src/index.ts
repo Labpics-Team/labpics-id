@@ -5,6 +5,7 @@ export * from "./identity/use-cases";
 export * from "./ports/audit-log";
 export * from "./ports/clock";
 export * from "./ports/identity";
+export * from "./ports/interaction";
 export * from "./ports/notification";
 export * from "./ports/outbox";
 export * from "./ports/protocol";

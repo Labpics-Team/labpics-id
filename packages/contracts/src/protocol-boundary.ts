@@ -17,6 +17,7 @@ const jsonValue: z.ZodType<unknown> = z.lazy(() =>
 
 export const boundaryOperationSchema = z.enum([
   "subject.get",
+  "subject.pairwise",
   "session.resolve",
   "session.reauthenticate",
   "subject.deactivate",
@@ -30,6 +31,9 @@ export const boundaryOperationSchema = z.enum([
   "artifact.put",
   "artifact.consume",
   "artifact.delete",
+  "artifact.find_by_uid",
+  "artifact.find_by_user_code",
+  "artifact.revoke_by_grant_id",
   "audit.append",
   "outbox.enqueue",
 ]);
@@ -38,11 +42,14 @@ export type BoundaryOperation = z.infer<typeof boundaryOperationSchema>;
 /** Safe-to-retry read operations; writes rely on idempotencyKey dedup at the server. */
 export const idempotentBoundaryReads = new Set<BoundaryOperation>([
   "subject.get",
+  "subject.pairwise",
   "session.resolve",
   "client.get",
   "consent.get",
   "key.list",
   "artifact.get",
+  "artifact.find_by_uid",
+  "artifact.find_by_user_code",
 ]);
 
 const base = {
@@ -54,6 +61,11 @@ const request = <T extends BoundaryOperation, S extends z.ZodRawShape>(operation
 
 export const boundaryRequestSchema = z.discriminatedUnion("operation", [
   request("subject.get", { subjectId: id }),
+  request("subject.pairwise", {
+    subjectId: id,
+    sectorIdentifier: id,
+    clientId: id,
+  }),
   request("session.resolve", { credential: z.string().min(1).max(8192) }),
   request("session.reauthenticate", {
     credential: z.string().min(1).max(8192),
@@ -72,9 +84,15 @@ export const boundaryRequestSchema = z.discriminatedUnion("operation", [
     artifactId: id,
     payload: jsonValue,
     expiresAt: timestamp.optional(),
+    grantId: id.optional(),
+    uid: id.optional(),
+    userCode: id.optional(),
   }),
   request("artifact.consume", { model: id, artifactId: id }),
   request("artifact.delete", { model: id, artifactId: id }),
+  request("artifact.find_by_uid", { model: id, uid: id }),
+  request("artifact.find_by_user_code", { model: id, userCode: id }),
+  request("artifact.revoke_by_grant_id", { grantId: id }),
   request("audit.append", {
     eventType: id,
     actorId: id.optional(),
