@@ -158,6 +158,16 @@ export function internalProtocolRoutes(deps: InternalProtocolDeps) {
         }),
       );
     } catch (error) {
+      // Handlers may reject a request as malformed (e.g. unknown artifact
+      // model) with a typed transport error; preserve its code and status
+      // instead of collapsing everything into operation_failed.
+      if (error instanceof BoundaryTransportError) {
+        deps.logger.warn(
+          { code: error.code, operation: request.operation, correlationId: error.correlationId },
+          "Boundary operation rejected",
+        );
+        return c.json(boundaryFailure(error), statusFor(error.code));
+      }
       deps.logger.error(
         {
           operation: request.operation,

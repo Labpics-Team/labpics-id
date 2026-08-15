@@ -8,6 +8,7 @@ export * from "./audit";
 export * from "./auth";
 export * from "./bootstrap";
 export * from "./organization";
+export * from "./protocol";
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

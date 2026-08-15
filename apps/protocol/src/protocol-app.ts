@@ -21,6 +21,9 @@ export function createProtocolApp({ config, logger }: ProtocolAppOptions): Provi
     ...(config.adapter === "external" ? { adapter: FailClosedExternalAdapter } : {}),
     clients: [],
     jwks: config.jwks === "generated" ? undefined : config.jwks,
+    cookies: {
+      keys: config.cookieKeys ? [...config.cookieKeys] : undefined,
+    },
     features: {
       devInteractions: { enabled: false },
       registration: { enabled: false },

@@ -1,3 +1,4 @@
+import type { BoundaryOperation } from "@labpics/contracts";
 import type { RateLimitPort } from "@labpics/domain";
 import { Hono } from "hono";
 import type { AuthPort } from "./auth/port";
@@ -13,6 +14,7 @@ import { healthRoutes } from "./routes/health";
 import { internalProtocolRoutes } from "./routes/internal-protocol";
 import type { LifecycleUseCases } from "./routes/lifecycle";
 import { lifecycleRoutes } from "./routes/lifecycle";
+import type { BoundaryOperationHandler } from "./routes/protocol-handlers";
 import { readyRoutes } from "./routes/ready";
 import { v1Routes } from "./routes/v1";
 import type { AppVariables } from "./types";
@@ -24,6 +26,9 @@ export interface AppDeps {
   readonly auth: AuthPort;
   readonly rateLimit: RateLimitPort | undefined;
   readonly lifecycleUseCases: LifecycleUseCases | undefined;
+  readonly protocolHandlers?:
+    | Partial<Record<BoundaryOperation, BoundaryOperationHandler>>
+    | undefined;
 }
 
 export function createApp(deps: AppDeps) {
@@ -45,6 +50,7 @@ export function createApp(deps: AppDeps) {
     internalProtocolRoutes({
       logger,
       boundaryCredentials: config.boundaryCredentials,
+      handlers: deps.protocolHandlers ?? {},
     }),
   );
 
