@@ -1,7 +1,7 @@
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
+import { signBoundaryPayload } from "@labpics/contracts/boundary-auth";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { signBoundaryPayload } from "@labpics/contracts/boundary-auth";
 
 interface BoundaryCredential {
   id: string;
@@ -74,10 +74,7 @@ async function sendBoundaryRequest(
   return result.result;
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ uid: string }> },
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ uid: string }> }) {
   const { uid } = await params;
   const formData = await request.formData();
   const decision = formData.get("decision");
@@ -145,9 +142,6 @@ export async function POST(
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json(
-      { error: "decision_failed", message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "decision_failed", message }, { status: 500 });
   }
 }

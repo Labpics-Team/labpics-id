@@ -14,7 +14,10 @@ interface ConsentFormProps {
   };
 }
 
-const SCOPE_DESCRIPTIONS: Record<string, { label: string; description: string; sensitive: boolean }> = {
+const SCOPE_DESCRIPTIONS: Record<
+  string,
+  { label: string; description: string; sensitive: boolean }
+> = {
   openid: {
     label: "Идентификация",
     description: "Подтвердить вашу личность",
@@ -184,7 +187,6 @@ export function ConsentForm({ uid, details }: ConsentFormProps) {
             Этому приложению будет разрешено:
           </p>
           <ul
-            role="list"
             style={{
               display: "flex",
               flexDirection: "column",
@@ -213,7 +215,9 @@ export function ConsentForm({ uid, details }: ConsentFormProps) {
                     padding: "var(--lab-space-12)",
                   }}
                 >
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--lab-space-4)" }}>
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: "var(--lab-space-4)" }}
+                  >
                     <span
                       style={{
                         fontSize: "var(--lab-text-body)",
