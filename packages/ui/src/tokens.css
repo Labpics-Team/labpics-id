@@ -29,14 +29,20 @@
   --lab-bg-grouped: #f2f4f7;
   --lab-bg-grouped-row: #ffffff;
 
-  /* ---- Color bases: labels (light) ---- */
-  --lab-label-p: #16181d;
-  --lab-label-s: #4a5260;
-  --lab-label-t: #5c6675;
-
-  /* Derived: disabled = tertiary label at 60% strength over the page bg
-   * (WCAG 1.4.3 exempts inactive UI). Not hand-picked; recomputes per theme. */
-  --lab-label-q: color-mix(in srgb, var(--lab-label-t) 60%, var(--lab-bg-primary));
+  /* ---- Color bases: labels (light) ----
+   * Figma baseline (docs/design/FIGMA-BASELINE.md): one label ink composited
+   * over the card surface at fixed strengths — the ladder is a LAW, not four
+   * hand-picked greys. Primary is declared (pure ink reads muddy at 100%);
+   * secondary/tertiary/disabled derive from the ink:
+   *   s = ink 72% over card (4.7:1 on card — AA body text, card surfaces)
+   *   t = ink 52% over card (caption/meta tier only — floor-asserted, C2)
+   *   q = ink 32% over card (disabled; WCAG 1.4.3 exempts inactive UI)
+   */
+  --lab-label-ink: #3c3c43;
+  --lab-label-p: #101012;
+  --lab-label-s: color-mix(in srgb, var(--lab-label-ink) 72%, var(--lab-bg-primary));
+  --lab-label-t: color-mix(in srgb, var(--lab-label-ink) 52%, var(--lab-bg-primary));
+  --lab-label-q: color-mix(in srgb, var(--lab-label-ink) 32%, var(--lab-bg-primary));
 
   /* ---- Color bases: Labpics Blue accent family (light) ----
    * anchor — brand #007AFF: focus ring, active nav, live/health, large text.
@@ -54,10 +60,26 @@
   --lab-accent-text: var(--lab-accent-blue-strong);
   --lab-on-accent: #ffffff;
 
-  /* ---- Color bases: sentiments (light; text/icon roles) ---- */
+  /* Figma baseline: the filled primary action is the ANCHOR fill finished
+   * with a top-light gradient overlay and an inset bottom shadow
+   * (docs/design/FIGMA-BASELINE.md §1.4). Both finishes derive from existing
+   * bases, so themes recompute them automatically. */
+  --lab-accent-gradient: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--lab-on-accent) 20%, transparent),
+    transparent
+  );
+  --lab-shadow-inset-control: inset 0 -1px 1px
+    color-mix(in srgb, var(--lab-color-shadow) 12%, transparent);
+
+  /* ---- Color bases: sentiments (light; text/icon roles) ----
+   * Error anchor is the Figma baseline signal red #FF3B30 (3.3:1 — icon/large
+   * tier); body-size error TEXT uses the darkened text member, one law:
+   * anchor ⊕ 28% black (4.6:1 on card). Dark aliases the anchor (7.2:1). */
   --lab-sentiment-success: #166534;
   --lab-sentiment-warning: #92400e;
-  --lab-sentiment-error: #b91c1c;
+  --lab-sentiment-error: #ff3b30;
+  --lab-sentiment-error-text: color-mix(in srgb, var(--lab-sentiment-error) 72%, #000000);
   --lab-sentiment-info: #075985;
 
   /* Derived: alert/badge tints = 10% sentiment over the page bg.
@@ -79,9 +101,15 @@
   );
   --lab-sentiment-info-bg: color-mix(in srgb, var(--lab-sentiment-info) 10%, var(--lab-bg-primary));
 
-  /* ---- Color bases: borders (light) ---- */
-  --lab-border-hairline: #e3e6eb; /* decorative separator — no AA requirement */
-  --lab-border-strong: #6b7484; /* input/control borders — must hold 3:1 */
+  /* ---- Color bases: borders (light) ----
+   * Figma baseline: one border ink at two strengths over the card. Borders
+   * are DECORATIVE in this system (FIGMA-BASELINE.md §3.4) — the control
+   * boundary is carried by the field surface + focus ring, so neither
+   * strength claims WCAG 1.4.11. Dark declares bases instead (low-alpha ink
+   * over near-black is invisible). */
+  --lab-border-ink: #787880;
+  --lab-border-hairline: color-mix(in srgb, var(--lab-border-ink) 8%, var(--lab-bg-primary));
+  --lab-border-strong: color-mix(in srgb, var(--lab-border-ink) 16%, var(--lab-bg-primary));
 
   /* ---- Focus (2px outline + 2px gap; never outline:none without it) ---- */
   --lab-focus-color: var(--lab-accent-blue);
@@ -128,6 +156,20 @@
   --lab-text-h3-weight: var(--lab-weight-semibold);
   --lab-text-h3-tracking: -0.005em;
 
+  /* Figma baseline auth-surface roles (FIGMA-BASELINE.md §1.7/§3.5) — sit
+   * OUTSIDE the ×1.25 ladder on purpose: title is the card lockup (20/20,
+   * −0.33px per mock), caption is 12px non-essential meta. Asserted by value
+   * (rubric F1), not by the ladder law. */
+  --lab-text-title: 1.25rem; /* 20px, line box 20px — auth card title */
+  --lab-text-title-lh: calc(20 / 20);
+  --lab-text-title-weight: var(--lab-weight-semibold);
+  --lab-text-title-tracking: -0.0165em; /* −0.33px at 20px */
+
+  --lab-text-caption: 0.75rem; /* 12px, line box 16px — meta/caption tier */
+  --lab-text-caption-lh: calc(16 / 12);
+  --lab-text-caption-weight: var(--lab-weight-medium);
+  --lab-text-caption-tracking: 0em;
+
   --lab-text-body: 0.9375rem; /* 15px, line box 24px */
   --lab-text-body-lh: calc(24 / 15);
   --lab-text-body-weight: var(--lab-weight-regular);
@@ -161,32 +203,48 @@
   /* Measure: body copy wraps at 65ch (60–75ch window). */
   --lab-measure: 65ch;
 
-  /* ---- Spacing (4px grid — the only permitted gaps) ---- */
+  /* ---- Spacing (4px grid — the only permitted gaps) ----
+   * 36 is the Figma auth-card section gap (FIGMA-BASELINE.md §1.8): the card
+   * composes 48-padding / 36-gap / 24-bottom, all on the 4px grid. */
   --lab-space-4: 0.25rem;
   --lab-space-8: 0.5rem;
   --lab-space-12: 0.75rem;
   --lab-space-16: 1rem;
   --lab-space-24: 1.5rem;
   --lab-space-32: 2rem;
+  --lab-space-36: 2.25rem;
   --lab-space-48: 3rem;
   --lab-space-64: 4rem;
 
   /* ---- Sizes ---- */
   --lab-size-touch: 2.75rem; /* 44px minimum touch target (WCAG 2.5.8 pref) */
-  --lab-shell-auth: 27.5rem; /* 440px auth card max */
+  --lab-size-control: 3rem; /* 48px control height (Figma baseline) */
+  --lab-size-otp-w: 3rem; /* 48px OTP cell width */
+  --lab-size-otp-h: 3.5rem; /* 56px OTP cell height */
+  --lab-size-logo-tile: 3rem; /* 48px brand tile, radius-md corners */
+  --lab-shell-auth: 30rem; /* 480px auth card max (Figma baseline) */
+  --lab-shell-auth-content: 24rem; /* 384px auth content column */
   --lab-shell-content: 45rem; /* 720px settings content max */
   --lab-shell-list: 68.75rem; /* 1100px list surfaces max */
 
-  /* ---- Radius (roles in DESIGN.md §7; concentric rule outer=inner+padding) ---- */
+  /* ---- Radius (roles in DESIGN.md §7; concentric rule outer=inner+padding)
+   * Figma baseline: controls 12, cards 24 — the concentric law holds with the
+   * card's 12px control + 12px optical gap → 24px card corner. ---- */
   --lab-radius-sm: 4px; /* checks, chips, inline code */
-  --lab-radius-md: 8px; /* buttons, inputs */
-  --lab-radius-lg: 12px; /* cards, dialogs, sheets */
+  --lab-radius-md: 12px; /* buttons, inputs, logo tile */
+  --lab-radius-lg: 24px; /* cards, dialogs, sheets */
   --lab-radius-pill: 999px; /* badges and pill buttons only */
 
   /* ---- Elevation: every layer is ONE shadow color at an alpha ----
-   * (cards use hairline, not shadow — see DESIGN.md §7). */
-  --lab-color-shadow: #16181d;
+   * (working surfaces use hairline; the auth card takes the dedicated
+   * four-layer soft stack from the Figma baseline — see DESIGN.md §7). */
+  --lab-color-shadow: #101012;
   --lab-shadow-0: none;
+  --lab-shadow-card:
+    0 0 1px 0 color-mix(in srgb, var(--lab-color-shadow) 12%, transparent),
+    0 1px 1px 0 color-mix(in srgb, var(--lab-color-shadow) 4%, transparent),
+    0 2px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 2%, transparent),
+    0 4px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 1%, transparent);
   --lab-shadow-1: 0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 6%, transparent);
   --lab-shadow-2:
     0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 6%, transparent),
@@ -247,9 +305,10 @@
   --lab-bg-grouped: #11141a;
   --lab-bg-grouped-row: #14171e;
 
+  /* Label ink re-measured for dark; the 72/52/32% ladder recomputes from it.
+   * Primary stays the solved near-white (pure ink at 100% glares). */
+  --lab-label-ink: #e4ebf7;
   --lab-label-p: #e9ecf2;
-  --lab-label-s: #a8b0bd;
-  --lab-label-t: #8a93a3;
 
   --lab-accent-blue-strong: #0f6fdd;
   --lab-accent-text: color-mix(in srgb, var(--lab-accent-blue) 66%, #ffffff);
@@ -257,12 +316,20 @@
   --lab-sentiment-success: #4ade80;
   --lab-sentiment-warning: #fbbf24;
   --lab-sentiment-error: #f87171;
+  /* Dark error text IS the anchor (7.2:1 on primary) — no darker member. */
+  --lab-sentiment-error-text: var(--lab-sentiment-error);
   --lab-sentiment-info: #38bdf8;
 
+  /* Borders declared, not derived: low-alpha ink over near-black vanishes. */
   --lab-border-hairline: #262b35;
   --lab-border-strong: #7e8798;
 
   --lab-color-shadow: #000000;
+  --lab-shadow-card:
+    0 0 1px 0 color-mix(in srgb, var(--lab-color-shadow) 40%, transparent),
+    0 1px 1px 0 color-mix(in srgb, var(--lab-color-shadow) 20%, transparent),
+    0 2px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 12%, transparent),
+    0 4px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 8%, transparent);
   --lab-shadow-1: 0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 40%, transparent);
   --lab-shadow-2:
     0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 30%, transparent),
@@ -282,9 +349,10 @@
     --lab-bg-grouped: #11141a;
     --lab-bg-grouped-row: #14171e;
 
+    /* Label ink re-measured for dark; the 72/52/32% ladder recomputes from it.
+     * Primary stays the solved near-white (pure ink at 100% glares). */
+    --lab-label-ink: #e4ebf7;
     --lab-label-p: #e9ecf2;
-    --lab-label-s: #a8b0bd;
-    --lab-label-t: #8a93a3;
 
     --lab-accent-blue-strong: #0f6fdd;
     --lab-accent-text: color-mix(in srgb, var(--lab-accent-blue) 66%, #ffffff);
@@ -292,12 +360,20 @@
     --lab-sentiment-success: #4ade80;
     --lab-sentiment-warning: #fbbf24;
     --lab-sentiment-error: #f87171;
+    /* Dark error text IS the anchor (7.2:1 on primary) — no darker member. */
+    --lab-sentiment-error-text: var(--lab-sentiment-error);
     --lab-sentiment-info: #38bdf8;
 
+    /* Borders declared, not derived: low-alpha ink over near-black vanishes. */
     --lab-border-hairline: #262b35;
     --lab-border-strong: #7e8798;
 
     --lab-color-shadow: #000000;
+    --lab-shadow-card:
+      0 0 1px 0 color-mix(in srgb, var(--lab-color-shadow) 40%, transparent),
+      0 1px 1px 0 color-mix(in srgb, var(--lab-color-shadow) 20%, transparent),
+      0 2px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 12%, transparent),
+      0 4px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 8%, transparent);
     --lab-shadow-1: 0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 40%, transparent);
     --lab-shadow-2:
       0 1px 2px 0 color-mix(in srgb, var(--lab-color-shadow) 30%, transparent),
