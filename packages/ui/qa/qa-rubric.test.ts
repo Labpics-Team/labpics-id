@@ -163,6 +163,114 @@ describe("C1 WCAG 2.2 AA contrast — all declared token pairs, both themes", ()
   }
 });
 
+describe("C2 ladder ordering (Figma baseline one-ink laws)", () => {
+  const { light, dark } = loadThemeTokens();
+
+  it("keeps the label ladder ordered: p > s > t > q (luminance-distinct strengths)", () => {
+    for (const tokens of [light, dark]) {
+      const bg = resolveToken("--lab-bg-primary", tokens);
+      const ratios = ["--lab-label-p", "--lab-label-s", "--lab-label-t", "--lab-label-q"].map(
+        (name) => contrastRatio(resolveToken(name, tokens), bg),
+      );
+      for (let i = 1; i < ratios.length; i++) {
+        const prev = ratios[i - 1];
+        const curr = ratios[i];
+        if (prev === undefined || curr === undefined) throw new Error("ladder incomplete");
+        expect(prev).toBeGreaterThan(curr);
+      }
+    }
+  });
+
+  it("keeps the border ladder ordered: strong is more visible than hairline", () => {
+    for (const tokens of [light, dark]) {
+      const bg = resolveToken("--lab-bg-primary", tokens);
+      const hairline = contrastRatio(resolveToken("--lab-border-hairline", tokens), bg);
+      const strong = contrastRatio(resolveToken("--lab-border-strong", tokens), bg);
+      expect(strong).toBeGreaterThan(hairline);
+    }
+  });
+});
+
+describe("F1 Figma baseline (docs/design/FIGMA-BASELINE.md, BL-009)", () => {
+  const { light } = loadThemeTokens();
+
+  it("composites the light label ladder from the #3C3C43 ink at 82/76/32%", () => {
+    expect(light["--lab-label-ink"]?.toLowerCase()).toBe("#3c3c43");
+    expect(resolveToken("--lab-label-p", light)).toBe("#101012");
+    expect(resolveToken("--lab-label-s", light)).toBe("#5f5f65");
+    expect(resolveToken("--lab-label-t", light)).toBe("#6b6b70");
+    expect(resolveToken("--lab-label-q", light)).toBe("#c1c1c3");
+  });
+
+  it("keeps the exact Figma 52% strength as the decorative-only --lab-ink-faint", () => {
+    // Wordmark tint / decorative graphics only (WCAG 1.4.3 logotype
+    // exemption) — never text. The raw mock value survives here instead of
+    // in the text ladder.
+    expect(light["--lab-ink-faint"]).toContain("52%");
+    expect(resolveToken("--lab-ink-faint", light)).toBe("#9a9a9d");
+  });
+
+  it("derives borders from the #787880 ink at 8/16% over the card", () => {
+    expect(light["--lab-border-ink"]?.toLowerCase()).toBe("#787880");
+    expect(resolveToken("--lab-border-hairline", light)).toBe("#f4f4f5");
+    expect(resolveToken("--lab-border-strong", light)).toBe("#e9e9eb");
+  });
+
+  it("anchors the error sentiment at #FF3B30 with a derived text member", () => {
+    expect(resolveToken("--lab-sentiment-error", light)).toBe("#ff3b30");
+    const text = resolveToken("--lab-sentiment-error-text", light);
+    expect(contrastRatio(text, resolveToken("--lab-bg-primary", light))).toBeGreaterThanOrEqual(
+      4.5,
+    );
+  });
+
+  it("ships the Figma radius roles (4/12/24) and auth-card metrics", () => {
+    expect(light["--lab-radius-sm"]).toBe("4px");
+    expect(light["--lab-radius-md"]).toBe("12px");
+    expect(light["--lab-radius-lg"]).toBe("24px");
+    expect(light["--lab-size-control"]).toBe("3rem");
+    expect(light["--lab-size-otp-w"]).toBe("3rem");
+    expect(light["--lab-size-otp-h"]).toBe("3.5rem");
+    expect(light["--lab-size-logo-tile"]).toBe("3rem");
+    expect(light["--lab-shell-auth"]).toBe("30rem");
+    expect(light["--lab-shell-auth-content"]).toBe("24rem");
+    expect(light["--lab-space-36"]).toBe("2.25rem");
+  });
+
+  it("ships the title (20/20 SemiBold, −0.33px) and caption (12/16 Medium) roles", () => {
+    expect(light["--lab-text-title"]).toBe("1.25rem");
+    expect(light["--lab-text-title-lh"]).toBe("calc(20 / 20)");
+    expect(light["--lab-text-title-weight"]).toBe("var(--lab-weight-semibold)");
+    // −0.33px at 20px = −0.0165em.
+    expect(light["--lab-text-title-tracking"]).toBe("-0.0165em");
+    expect(light["--lab-text-caption"]).toBe("0.75rem");
+    expect(light["--lab-text-caption-lh"]).toBe("calc(16 / 12)");
+    expect(light["--lab-text-caption-weight"]).toBe("var(--lab-weight-medium)");
+  });
+
+  it("ships the primary-action finish and the auth-card shadow stack", () => {
+    expect(light["--lab-accent-gradient"]).toContain("linear-gradient");
+    expect(light["--lab-accent-gradient"]).toContain("20%");
+    expect(light["--lab-shadow-inset-control"]).toContain("inset 0 -1px 1px");
+    expect(light["--lab-shadow-inset-control"]).toContain("12%");
+    const card = light["--lab-shadow-card"];
+    if (card === undefined) throw new Error("Missing --lab-shadow-card");
+    // Four layers (one color-mix each), geometry and alphas 12/4/2/1 from the
+    // Figma stack: 0 0 1px / 0 1px 1px / 0 2px 2px / 0 4px 2px.
+    expect(card.match(/color-mix\(/g)).toHaveLength(4);
+    for (const [geometry, pct] of [
+      ["0 0 1px 0", "12%"],
+      ["0 1px 1px 0", "4%"],
+      ["0 2px 2px 0", "2%"],
+      ["0 4px 2px 0", "1%"],
+    ] as const) {
+      expect(card).toContain(geometry);
+      expect(card).toContain(pct);
+    }
+    expect(light["--lab-color-shadow"]?.toLowerCase()).toBe("#101012");
+  });
+});
+
 describe("D1 dark theme anti-drift", () => {
   it("keeps [data-theme=dark] and prefers-color-scheme blocks identical", () => {
     const { darkBlockBodies } = loadThemeTokens();

@@ -2,6 +2,7 @@
 
 **Status:** gate document — no page/component UI may be written before this file is merged.
 **Source brief:** `docs/design/DESIGN-BRIEF.md` (v2, 51 screens, state contract, QA rubric).
+**Taste baseline:** `docs/design/FIGMA-BASELINE.md` (owner Figma mock, file `vFWveYl6n4pLqSut3GFQxk`, BL-009) — where taste and a previously hand-solved value conflict, the Figma baseline wins and the law is re-derived; the one non-negotiable is WCAG AA for text roles (a mock value that fails AA keeps the mock's *law* with an AA-solved parameter). Every accepted deviation is documented there and machine-asserted by the rubric.
 **Brand source:** `lab.pics/brand` (verified 2026-08-11): flask mark, Labpics Blue `#007AFF`, Geist, Swiss legacy.
 **Token source of truth:** `packages/ui/src/tokens.css` — the only file (besides this document) where raw color values may appear. Interaction colors are **derived** there with `color-mix()` from declared bases; hand-picking a hover/tint/disabled value is a violation.
 **Machine checks:** `packages/ui/qa/qa-rubric.test.ts` (`bun run qa:rubric`) resolves every `color-mix()`/`var()` chain and enforces: token purity in CSS **and TSX**, WCAG 2.2 AA for every pair in §2.6 in both themes, OKLCH hue stability of the accent family, the typography derivation law, dark-theme anti-drift, the brand anchor, forbidden decorative hues, `transition: all` prohibition, the dev-tooling gate (structural), icon-family purity, and full 51-screen/component reconciliation.
@@ -60,7 +61,13 @@ The palette has exactly two kinds of values:
 |---|---|---|---|
 | `--lab-accent-blue-hover` | strong ⊕ 12% black | `#0056B4` | `#0D62C2` |
 | `--lab-sentiment-*-bg` | sentiment 10% over `--lab-bg-primary` | e.g. success `#EAF1ED` | e.g. success `#132720` |
-| `--lab-label-q` (disabled) | `--lab-label-t` 60% over `--lab-bg-primary` | `#9DA3AC` | `#585E69` |
+| `--lab-label-s` | label ink 82% over card | `#5F5F65` | `#BDC3CE` |
+| `--lab-label-t` | label ink 76% over card | `#6B6B70` | `#B0B6C0` |
+| `--lab-label-q` (disabled) | label ink 32% over card | `#C1C1C3` | `#51555C` |
+| `--lab-ink-faint` (decorative only) | label ink 52% over card | `#9A9A9D` | `#7C818A` |
+| `--lab-border-hairline` | border ink 8% over card (light) | `#F4F4F5` | declared `#262B35` |
+| `--lab-border-strong` | border ink 16% over card (light) | `#E9E9EB` | declared `#7E8798` |
+| `--lab-sentiment-error-text` | error anchor ⊕ 28% black (light) | `#B82A23` | aliases anchor `#F87171` |
 | `--lab-shadow-focus` | `--lab-focus-color` at 30% alpha, 4px spread | `rgba(0,122,255,.3)` ring | same law |
 | `--lab-accent-text` (dark only) | anchor 66% ⊕ 34% white | — | `#57A7FF` |
 
@@ -77,6 +84,10 @@ The accent is the **Labpics Blue perceptual family**, anchored at brand **`#007A
 | `--lab-accent-blue-hover` | derived `#0056B4` | derived `#0D62C2` | Primary-action hover fill (white on it: 7.02:1 / 5.93:1) |
 | `--lab-accent-text` | = strong (`#0062CC`) | derived `#57A7FF` | Accent-colored body text and links (4.5:1+ on primary/secondary bg) |
 | `--lab-on-accent` | `#FFFFFF` | `#FFFFFF` | Label on accent fills |
+| `--lab-accent-gradient` | derived: `--lab-on-accent` 20% → transparent, 180° | same law | Top-light finish over the filled primary action (Figma baseline §1.4) |
+| `--lab-shadow-inset-control` | derived: inset 0 −1px 1px shadow ink @ 12% | same law | Bottom inset finish on filled controls |
+
+**Filled primary action (Figma baseline):** the Figma mock fills the CTA with the raw anchor, but white on `#007AFF` is **4.02:1** — below body-text AA for a 16px Medium label. The reconciliation keeps the mock's **finish** (`--lab-accent-gradient` + `--lab-shadow-inset-control`) over the **strong** fill, preserving the 4.5:1 label assertions on strong and hover (`FIGMA-BASELINE.md` §3.3).
 
 **Hue stability (machine-checked):** in OKLCH, every member of the family stays within **10° of hue** of the anchor per theme. Measured: light family spread 0.6° (H ≈ 257°), dark family spread 4.8° (H 252.6–257.4°). A "blue" that drifts toward violet or cyan fails the rubric.
 
@@ -86,19 +97,26 @@ Usage rule (brief V1): Labpics Blue appears **only** on primary action, active n
 
 Neutral bases live near the accent hue (OKLCH H 258–268°, chroma ≤ 0.027) so greys read as one temperature family, never mixed warm/cool.
 
+**Surface inversion (Figma baseline):** the auth mock reads page = grey wash (`--lab-bg-secondary` `#F7F8FA`), card = white (`--lab-bg-primary`). Working text lives on card-white surfaces; the wash is chrome, not a reading surface.
+
+**Label ladder law (Figma baseline):** one label ink per theme (`--lab-label-ink` — light `#3C3C43`, dark `#E4EBF7`) composited over the card at fixed strengths: secondary 82%, tertiary 76%, disabled 32%. Primary is declared (pure ink at full strength reads muddy/glaring). The Figma mock's raw alphas (72/52%) fail AA off the white card, so the strengths are **AA-solved** while keeping the mock's one-ink law — every P/S/T pairing holds 4.5:1 on all five backgrounds in both themes (`FIGMA-BASELINE.md` §3.1–3.2).
+
 | Token | Light | Dark | Role |
 |---|---|---|---|
-| `--lab-bg-primary` | `#FFFFFF` | `#0C0E13` | Page background |
-| `--lab-bg-secondary` | `#F7F8FA` | `#14171E` | Cards, panels |
+| `--lab-bg-primary` | `#FFFFFF` | `#0C0E13` | Card / working surface (auth card, grouped rows) |
+| `--lab-bg-secondary` | `#F7F8FA` | `#14171E` | Page wash behind cards |
 | `--lab-bg-tertiary` | `#EFF1F4` | `#1C2029` | Inputs, code blocks, table headers |
 | `--lab-bg-grouped` | `#F2F4F7` | `#11141A` | Grouped settings lists (container) |
 | `--lab-bg-grouped-row` | `#FFFFFF` | `#14171E` | Grouped list rows |
-| `--lab-label-p` | `#16181D` | `#E9ECF2` | Primary text |
-| `--lab-label-s` | `#4A5260` | `#A8B0BD` | Secondary text |
-| `--lab-label-t` | `#5C6675` | `#8A93A3` | Tertiary/caption text |
-| `--lab-label-q` | derived | derived | Disabled (§2.1; WCAG 1.4.3 inactive-UI exemption) |
-| `--lab-border-hairline` | `#E3E6EB` | `#262B35` | Decorative separators (no AA requirement) |
-| `--lab-border-strong` | `#6B7484` | `#7E8798` | Input/control borders (holds 3:1, WCAG 1.4.11) |
+| `--lab-label-ink` | `#3C3C43` | `#E4EBF7` | Label ink base — never used directly |
+| `--lab-label-p` | `#101012` | `#E9ECF2` | Primary text (17.9:1 on card) |
+| `--lab-label-s` | derived `#5F5F65` | derived `#BDC3CE` | Secondary text (≥5.60:1 light / ≥9.21:1 dark on every surface) |
+| `--lab-label-t` | derived `#6B6B70` | derived `#B0B6C0` | Tertiary/caption text (≥4.68:1 light / ≥8.00:1 dark on every surface) |
+| `--lab-label-q` | derived `#C1C1C3` | derived `#51555C` | Disabled (WCAG 1.4.3 inactive-UI exemption) |
+| `--lab-ink-faint` | derived `#9A9A9D` | derived `#7C818A` | **Decorative only** — wordmark tint (1.4.3 logotype exemption), decorative graphics; the exact Figma 52% strength. Never text |
+| `--lab-border-ink` | `#787880` | — (dark declares) | Border ink base — never used directly |
+| `--lab-border-hairline` | derived `#F4F4F5` | `#262B35` | Decorative separators (no AA requirement) |
+| `--lab-border-strong` | derived `#E9E9EB` | `#7E8798` | Input/control borders — **decorative** (Figma §3.4): the control boundary is the field surface + focus ring, not the border |
 
 ### 2.4 Sentiments
 
@@ -108,9 +126,10 @@ Sentiments communicate status only — never primary actions (destructive primar
 |---|---|---|---|
 | `--lab-sentiment-success` | `#166534` | `#4ADE80` | Success text/icon |
 | `--lab-sentiment-warning` | `#92400E` | `#FBBF24` | Warning text/icon |
-| `--lab-sentiment-error` | `#B91C1C` | `#F87171` | Error text/icon |
+| `--lab-sentiment-error` | `#FF3B30` | `#F87171` | Error **anchor** — icon/large tier (≥3:1); Figma baseline signal red |
+| `--lab-sentiment-error-text` | derived (§2.1) `#B82A23` | aliases anchor | Error body text (4.5:1 on card and on the error tint) |
 | `--lab-sentiment-info` | `#075985` | `#38BDF8` | Info text/icon |
-| `--lab-sentiment-*-bg` | derived (§2.1) | derived (§2.1) | Alert/badge surfaces — measured 5.58–6.57:1 light, 6.04–9.35:1 dark |
+| `--lab-sentiment-*-bg` | derived (§2.1) | derived (§2.1) | Alert/badge surfaces — asserted per §2.6 in both themes |
 
 ### 2.5 Dark is a separate design
 
@@ -123,7 +142,7 @@ The rest of the dark palette is solved per surface (label P on dark primary: 15.
 
 ### 2.6 Contrast contract (WCAG 2.2 AA, machine-checked)
 
-Every legal foreground/background composition is enumerated in `packages/ui/qa/contrast-pairs.ts` and asserted programmatically in **both themes** on every test run — the checker first *resolves* `var()` and `color-mix()` chains to hex, so derived tokens are verified as rendered: **4.5:1** for body text, **3:1** for large text and non-text UI. The full matrix: labels P/S/T × all five backgrounds (4.5), accent text on primary/secondary (4.5), on-accent on strong/hover fills (4.5), signal anchor on primary/secondary (3, non-text/large only), four sentiments on primary bg and on their derived tints (4.5), strong border on primary/secondary (3). Adding a new pairing to a component without adding it to the manifest and this table is a design-system violation.
+Every legal foreground/background composition is enumerated in `packages/ui/qa/contrast-pairs.ts` and asserted programmatically in **both themes** on every test run — the checker first *resolves* `var()` and `color-mix()` chains to hex, so derived tokens are verified as rendered: **4.5:1** for body text, **3:1** for large text and non-text UI. The full matrix: labels P/S/T × all five backgrounds (4.5), accent text on primary/secondary (4.5), on-accent on strong/hover fills (4.5), signal anchor on primary/secondary (3, non-text/large only), sentiments on primary bg and on their derived tints (error split per the Figma baseline: text member `--lab-sentiment-error-text` at 4.5, anchor `#FF3B30` at 3 for icons/borders/large). The rubric additionally asserts the label and border ladder orderings (C2). Adding a new pairing to a component without adding it to the manifest and this table is a design-system violation.
 
 Measured ratios are produced by the rubric run (`bun run qa:rubric`), not maintained by hand — the manifest is the contract, the test output is the evidence.
 
@@ -144,6 +163,8 @@ The scale is **major third (×1.25) from a 15px base, snapped to the nearest eve
 
 13px is not on the ratio ladder — it is the **persistent-UI floor** (the smallest size allowed for always-visible text) and serves small/label/caps/mono. 16px exists for one reason only: inputs (§3.2, iOS zoom floor). The rubric (T7) recomputes the ladder from the base and fails if any size token deviates.
 
+**Off-ladder exceptions (Figma baseline, owner-accepted):** `--lab-text-title` (20/20) and `--lab-text-caption` (12/16) come from the auth mock and sit outside both the ×1.25 ladder and the 13px floor. They are scoped to the auth surface (title = one-line card lockup; caption = non-essential meta) and asserted **by value** in the rubric (F1) instead of by the ladder law — see `docs/design/FIGMA-BASELINE.md` §3.5.
+
 **Leading law:** each role's line box is the smallest 4px multiple ≥ size × target band (headings 1.15–1.35, body/small 1.5–1.6). Line heights are stored in tokens as visible fractions — `calc(36 / 28)`, not a rounded decimal — so the derivation is auditable. Any role reaching 3+ lines keeps leading ≥ 1.4 by construction (all body-band roles are ≥ 1.5; headings are structurally 1–2 lines and additionally `text-wrap: balance`).
 
 ### 3.2 Role table — one decision per role: size × line box × weight × tracking
@@ -154,6 +175,8 @@ The scale is **major third (×1.25) from a 15px base, snapped to the nearest eve
 | h1 | `--lab-text-h1` | 28px / 36px (1.286) | 600 | −0.015em | Page titles (exactly one per screen) |
 | h2 | `--lab-text-h2` | 22px / 28px (1.273) | 600 | −0.01em | Section titles |
 | h3 | `--lab-text-h3` | 18px / 24px (1.333) | 600 | −0.005em | Card/group titles |
+| title | `--lab-text-title` | 20px / 20px (1.0) | 600 | −0.0165em (−0.33px) | **Auth-card lockup only** (Figma baseline §1.7) — one-line title, off-ladder by owner decision |
+| caption | `--lab-text-caption` | 12px / 16px (1.333) | 500 | 0 | Non-essential meta/caption tier (pairs with `--lab-label-t`), off-floor by owner decision |
 | body | `--lab-text-body` | 15px / 24px (1.6) | 400 | 0 | Default reading text |
 | small | `--lab-text-small` | 13px / 20px (1.538) | 400 | 0 | Meta prose, captions |
 | label | `--lab-text-label` | 13px / 20px (1.538) | 500 | 0 | Buttons, field labels, tabs |
@@ -174,7 +197,7 @@ The scale is **major third (×1.25) from a 15px base, snapped to the nearest eve
 
 ## 4. Spacing & Layout
 
-- **4px base grid.** The spacing scale is `--lab-space-4/8/12/16/24/32/48/64` — eight steps: ×2 up to 16 for intra-control precision, then 1.5×–2× strides for section rhythm. Granularity justification: 4/8/12 exist because control padding at 13–15px type needs sub-16px steps (a 13px label inside a 44px control takes 12px vertical padding); no step between 16 and 24 exists because nothing in the brief's 51 screens composes at 20px. Off-grid px values in committed CSS fail the QA rubric.
+- **4px base grid.** The spacing scale is `--lab-space-4/8/12/16/24/32/36/48/64` — nine steps: ×2 up to 16 for intra-control precision, then 1.5×–2× strides for section rhythm. Granularity justification: 4/8/12 exist because control padding at 13–15px type needs sub-16px steps (a 13px label inside a 44px control takes 12px vertical padding); no step between 16 and 24 exists because nothing in the brief's 51 screens composes at 20px; **36 is the Figma auth-card section gap** (`FIGMA-BASELINE.md` §1.8 — the card composes 48 padding / 36 gap / 24 bottom). Off-grid px values in committed CSS fail the QA rubric.
 - **Grouping law: between-group gap ≥ 2× within-group gap.** Concretely: items inside a group sit at 8 or 12; sibling groups sit at 24 or 32; sections sit at 48 or 64. Separation is expressed by space first; a hairline may only *reinforce* a ≥2× gap, never substitute for it (no divider-soup).
 - **Alignment & density:** labels and values in ledgers left-align to a shared column edge; numeric table columns right-align with `tabular-nums`; icons vertically center against the text line box, not the font baseline. Density is uniform per surface — no per-row custom padding.
 - **Logical properties:** all new CSS uses `margin-inline` / `padding-block` / `inset-inline` so the system survives RTL without a rewrite.
@@ -187,7 +210,7 @@ Breakpoints (fluid, not device-locked; one min-width convention — Tailwind `sm
 | `sm` (≥ 640px) | `--bp-sm` = 40rem | 2-col grids, tables→cards, drawer nav |
 | `lg` (≥ 1024px) | `--bp-lg` = 64rem | Full shell (sidebar), 3–4 col grids, split panels |
 
-Shell maxima (tokens): auth card `--lab-shell-auth` 440px; account settings content `--lab-shell-content` 720px; list surfaces `--lab-shell-list` 1100px. Touch targets ≥ 24×24px minimum, **44×44px preferred** (`--lab-size-touch`) with ≥ 8px gaps (WCAG 2.5.8); inputs ≥ 16px text on mobile (§3.2). Reflow: no content loss at 320px width and no horizontal scroll at 200% zoom (WCAG 1.4.10); 400% zoom keeps the auth flow completable.
+Shell maxima (tokens, Figma baseline §1.8): auth card `--lab-shell-auth` **480px** with a **384px** content column (`--lab-shell-auth-content`), card padding 48/48/24/48 (top/inline/bottom) and section gap 36 (`--lab-space-36`); account settings content `--lab-shell-content` 720px; list surfaces `--lab-shell-list` 1100px. Control height is **48px** (`--lab-size-control`); OTP cells are 48×56 (`--lab-size-otp-w/h`); the brand logo tile is 48px at `--lab-radius-md` (`--lab-size-logo-tile`). Touch targets ≥ 24×24px minimum, **44×44px preferred** (`--lab-size-touch`) with ≥ 8px gaps (WCAG 2.5.8); inputs ≥ 16px text on mobile (§3.2). Reflow: no content loss at 320px width and no horizontal scroll at 200% zoom (WCAG 1.4.10); 400% zoom keeps the auth flow completable.
 
 ---
 
@@ -279,10 +302,14 @@ Every shadow layer is **one shadow color (`--lab-color-shadow`) at an alpha** �
 
 | Level | Token | Composition | Used for |
 |---|---|---|---|
-| 0 | `--lab-shadow-0` | none — hairline instead | Cards, panels, tables |
+| 0 | `--lab-shadow-0` | none — hairline instead | Panels, tables, working surfaces |
+| card | `--lab-shadow-card` | 4 soft layers: 0 0 1px @ 12% + 0 1px 1px @ 4% + 0 2px 2px @ 2% + 0 4px 2px @ 1% | **Auth card** (Figma baseline §1.6) — dark re-measures at 40/20/12/8% |
 | 1 | `--lab-shadow-1` | 1 layer: 0 1px 2px @ 6% | Sticky bars |
 | 2 | `--lab-shadow-2` | 2 layers: contact 6% + 0 4px 12px @ 10% | Dropdowns, popovers |
 | 3 | `--lab-shadow-3` | 2 layers: 0 2px 8px @ 8% + 0 12px 32px @ 16% | Dialogs, bottom sheets |
+| inset | `--lab-shadow-inset-control` | inset 0 −1px 1px @ 12% | Filled-control bottom finish (pairs with `--lab-accent-gradient`) |
+
+The shadow ink is `--lab-color-shadow` = `#101012` (light; the primary label ink), pure black in dark.
 
 The **focus ring has its own dedicated token** (`--lab-shadow-focus` = `0 0 0 4px` focus color @ 30% alpha) and is never mixed into the elevation ladder.
 
@@ -291,11 +318,11 @@ The **focus ring has its own dedicated token** (`--lab-shadow-focus` = `0 0 0 4p
 | Token | Value | Role |
 |---|---|---|
 | `--lab-radius-sm` | 4px | Checkboxes, chips, inline code |
-| `--lab-radius-md` | 8px | Buttons, inputs |
-| `--lab-radius-lg` | 12px | Cards, dialogs, sheets |
+| `--lab-radius-md` | 12px | Buttons, inputs, logo tile (Figma baseline) |
+| `--lab-radius-lg` | 24px | Cards, dialogs, sheets (Figma baseline) |
 | `--lab-radius-pill` | 999px | Badges and pill buttons **only** |
 
-**Concentric rule: `outer radius = inner radius + padding gap`.** A `--lab-radius-md` (8px) control inside a padded container needs the container at 8px + its padding — e.g. an input inside a card with 4px gap → card corner 12px (`--lab-radius-lg`). Equal nested radii are a violation (they read as a mistake at every corner). Data tables take no corner softening.
+**Concentric rule: `outer radius = inner radius + padding gap`.** A `--lab-radius-md` (12px) control inside a padded container needs the container at 12px + its padding — e.g. an input inside a card with a 12px optical gap → card corner 24px (`--lab-radius-lg`), exactly the Figma auth-card geometry. Equal nested radii are a violation (they read as a mistake at every corner). Data tables take no corner softening.
 
 ### 7.3 Z ladder & materials
 
@@ -313,6 +340,8 @@ The **focus ring has its own dedicated token** (`--lab-shadow-focus` = `0 0 0 4p
 | `transition: all` / `transition-all` prohibition | T6 | every run |
 | Typography derivation law (scale from base, 4px line boxes) | T7 | every run |
 | WCAG AA contrast, all §2.6 pairs, both themes, `color-mix` resolved | C1 | every run |
+| Label/border ladder ordering (one-ink laws stay monotonic) | C2 | every run |
+| Figma baseline values (ink ladders, error anchor, radii, sizes, title/caption roles, card shadow, control finish) | F1 | every run |
 | OKLCH hue stability of the accent family (<10°) | O1 | every run |
 | Dark-theme anti-drift | D1 | every run |
 | Brand anchor #007AFF, no stray hue anywhere | V1 | every run |
