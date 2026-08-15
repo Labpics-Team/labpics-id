@@ -21,7 +21,7 @@ import { describe, expect, it } from "bun:test";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { contrastRatio } from "./contrast";
-import { CAPTION_PAIRS, CONTRAST_PAIRS } from "./contrast-pairs";
+import { CONTRAST_PAIRS } from "./contrast-pairs";
 import { hexToOklch, hueDistance } from "./oklch";
 import {
   findArbitraryValues,
@@ -163,18 +163,8 @@ describe("C1 WCAG 2.2 AA contrast — all declared token pairs, both themes", ()
   }
 });
 
-describe("C2 caption tier floor (Figma baseline §3.2)", () => {
+describe("C2 ladder ordering (Figma baseline one-ink laws)", () => {
   const { light, dark } = loadThemeTokens();
-
-  for (const theme of ["light", "dark"] as const) {
-    const tokens = theme === "light" ? light : dark;
-    for (const pair of CAPTION_PAIRS) {
-      it(`${theme}: ${pair.fg} on ${pair.bg} ≥ ${pair.floor}:1 (${pair.note})`, () => {
-        const ratio = contrastRatio(resolveToken(pair.fg, tokens), resolveToken(pair.bg, tokens));
-        expect(ratio).toBeGreaterThanOrEqual(pair.floor);
-      });
-    }
-  }
 
   it("keeps the label ladder ordered: p > s > t > q (luminance-distinct strengths)", () => {
     for (const tokens of [light, dark]) {
@@ -204,11 +194,11 @@ describe("C2 caption tier floor (Figma baseline §3.2)", () => {
 describe("F1 Figma baseline (docs/design/FIGMA-BASELINE.md, BL-009)", () => {
   const { light } = loadThemeTokens();
 
-  it("composites the light label ladder from the #3C3C43 ink at 72/52/32%", () => {
+  it("composites the light label ladder from the #3C3C43 ink at 82/76/32%", () => {
     expect(light["--lab-label-ink"]?.toLowerCase()).toBe("#3c3c43");
     expect(resolveToken("--lab-label-p", light)).toBe("#101012");
-    expect(resolveToken("--lab-label-s", light)).toBe("#737378");
-    expect(resolveToken("--lab-label-t", light)).toBe("#9a9a9d");
+    expect(resolveToken("--lab-label-s", light)).toBe("#5f5f65");
+    expect(resolveToken("--lab-label-t", light)).toBe("#6b6b70");
     expect(resolveToken("--lab-label-q", light)).toBe("#c1c1c3");
   });
 

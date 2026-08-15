@@ -1,77 +1,108 @@
-# Figma Baseline — owner taste-SSOT (BL-009)
+# Figma Baseline — вкусовой SSOT владельца (BL-009)
 
-> Reference: the extracted visual baseline from the owner's Figma mock, and the
-> reconciliation decisions that fold it into DESIGN.md and
-> `packages/ui/src/tokens.css`. **Precedence:** Figma is the *taste* source of
-> truth (what the product should look like); DESIGN.md is the *system law*
-> (how values are derived and verified); `tokens.css` is the *value* source of
-> truth components read. When taste and a previously hand-solved value
-> conflict, Figma wins and the law is re-derived — never silently.
+> Зафиксированная визуальная база из Figma-мока владельца и решения по её
+> сверке с DESIGN.md и `packages/ui/src/tokens.css`. **Приоритет:** Figma —
+> источник истины по *вкусу* (как продукт должен выглядеть); DESIGN.md —
+> *системный закон* (как значения выводятся и проверяются); `tokens.css` —
+> источник *значений*, которые читают компоненты. Когда вкус и ранее
+> решённое значение конфликтуют, побеждает Figma и закон перевыводится —
+> никогда молча. Единственное исключение: **WCAG 2.2 AA для текстовых ролей
+> не торгуется** — там, где сырое значение мока проваливает AA, закон мока
+> сохраняется, а параметр закона пересчитывается до проходного (§3).
 
-**Source:** Figma file `vFWveYl6n4pLqSut3GFQxk`, page **"Labpics ID"** (auth
-surface mock). Extracted 2026-08-15. **Verification:** every value below is
-asserted by `packages/ui/qa/qa-rubric.test.ts` (F1 Figma baseline, C1/C2
-contrast, D1 anti-drift) — the doc cannot drift from the shipped tokens
-without a red build.
+**Источник:** Figma-файл `vFWveYl6n4pLqSut3GFQxk`, страница **«Labpics ID»**
+(мок auth-поверхности). Извлечено 2026-08-15.
+
+**Фреймы (1440×1000):**
+
+| Frame ID | Экран |
+|---|---|
+| `1552:3908` | login — default |
+| `1564:7602` | login — filled (disabled CTA) |
+| `1564:7506` | login — error |
+| `1563:7321` | OTP entry |
+
+**Верификация:** каждое значение ниже утверждается в
+`packages/ui/qa/qa-rubric.test.ts` (F1 Figma baseline, C1/C2 контраст,
+D1 anti-drift) — документ не может разойтись с токенами без красной сборки.
 
 ---
 
-## 1. Extracted baseline (light theme)
+## 1. Извлечённая база (светлая тема)
 
-### 1.1 Surfaces
+### 1.1 Поверхности и макет
 
-| Element | Figma value | Token |
+| Элемент | Значение Figma | Токен |
 |---|---|---|
-| Page background | `#F7F8FA` | `--lab-bg-secondary` (unchanged) |
-| Card / auth surface | `#FFFFFF` | `--lab-bg-primary` |
+| Фон страницы | `#F7F8FA` | `--lab-bg-secondary` (без изменений) |
+| Карточка / auth-поверхность | `#FFFFFF` | `--lab-bg-primary` |
 
-The auth mock inverts the old assumption: the **page** is the grey wash and
-the **card** is white. Working text sits on the card, so the text-contrast
-contract is scoped to card surfaces (§3.1 below).
+Мок инвертирует старое допущение: **страница** — серая заливка,
+**карточка** — белая. Рабочий текст живёт на карточке; заливка — хром.
+Вертикальный auto-layout: gap 96, padding-top 24, padding-bottom 64,
+центрирование. Логотип-плитка 48×48 r12 (`#007AFF` + градиент, белая колба)
+перекрывает карточку (stack gap −24). Подпись футера «© 2026 Labpics» —
+12px Medium, label-ink @ 52% (caption-роль, см. §3.2).
 
-### 1.2 Label ink ladder (alpha-composited)
+### 1.2 Лестница лейблов (одна краска, альфа-композиция)
 
-Labels are one ink, `#3C3C43`, composited over the card at fixed strengths —
-the iOS-style label ladder. Expressed in tokens as `color-mix()` so the QA
-resolver verifies the rendered result:
+Лейблы — одна краска `#3C3C43`, композитная над карточкой с фиксированными
+долями (лестница в стиле iOS). В токенах выражено через `color-mix()`, чтобы
+QA-резолвер проверял именно отрисованный результат.
 
-| Role | Law | Resolves to (light) | Contrast on card |
+**Сырые альфы мока (72/52%) проваливают AA вне белой карточки** (4.43:1 на
+`#F7F8FA`, 2.81:1 на карточке для 52%), поэтому доли **пересчитаны до AA**
+при сохранении закона мока «одна краска ⊕ альфа над поверхностью» (§3.1–3.2):
+
+| Роль | Закон | Разрешается (light) | Худший контраст (5 фонов) |
 |---|---|---|---|
-| primary `--lab-label-p` | declared `#101012` | `#101012` | 17.9:1 |
-| secondary `--lab-label-s` | ink 72% over card | `#737378` | 4.73:1 (AA) |
-| tertiary/caption `--lab-label-t` | ink 52% over card | `#9A9A9D` | 2.81:1 (caption floor, §3.2) |
-| disabled `--lab-label-q` | ink 32% over card | `#C1C1C3` | exempt (WCAG 1.4.3) |
+| primary `--lab-label-p` | объявлен `#101012` | `#101012` | 16.80:1 |
+| secondary `--lab-label-s` | ink 82% над карточкой | `#5F5F65` | 5.60:1 (AA) |
+| tertiary `--lab-label-t` | ink 76% над карточкой | `#6B6B70` | 4.68:1 (AA) |
+| disabled `--lab-label-q` | ink 32% над карточкой | `#C1C1C3` | exempt (WCAG 1.4.3) — точная альфа мока |
 
-### 1.3 Borders
+### 1.3 Границы
 
-One border ink, `#787880`, at two strengths:
+Одна краска границ `#787880` в двух долях (значения мока сохранены — границы
+декоративны, §3.4):
 
-| Role | Law | Resolves to (light) |
+| Роль | Закон | Разрешается (light) |
 |---|---|---|
-| hairline `--lab-border-hairline` | border-ink 8% over card | `#F4F4F5` |
-| control border `--lab-border-strong` | border-ink 16% over card | `#E9E9EB` |
+| hairline `--lab-border-hairline` | border-ink 8% над карточкой | `#F4F4F5` |
+| control border `--lab-border-strong` | border-ink 16% над карточкой | `#E9E9EB` |
 
-### 1.4 Accent & primary action
+### 1.4 Акцент и primary action
 
-- Anchor stays brand **`#007AFF`** (`--lab-accent-blue`).
-- **Filled primary action = the anchor itself**, finished with a top-light
-  gradient and an inset bottom shadow:
+- Якорь остаётся брендовым **`#007AFF`** (`--lab-accent-blue`).
+- Мок заливает CTA сырым якорем; белый на `#007AFF` = **4.02:1** — ниже AA
+  для 16px-лейбла. Сохранена **отделка** мока над **strong**-заливкой (§3.3):
   - `--lab-accent-gradient`: `linear-gradient(180deg, white 20% → 0%)`
   - `--lab-shadow-inset-control`: `inset 0 -1px 1px` shadow-ink @ 12%
-- Error sentiment anchor: **`#FF3B30`** (replaces `#B91C1C`).
+- Вторичная/социальная кнопка: h48 r12, фон карточки, граница
+  border-ink @ 16%, лейбл 16 Medium `--lab-label-p`, иконка 24.
+- OTP-ячейка: 48×56 r12, фон карточки; активная граница — якорь, неактивная —
+  border-ink @ 16%; точка 8px (заполненная `--lab-label-p` / пустая
+  label-ink @ 32%), gap ряда 12.
+- Якорь ошибки: **`#FF3B30`** (заменяет `#B91C1C`) — тир иконок/границ/
+  крупного (3.55:1); текст ошибки — выведенный член `#B82A23` (§3.6).
+- Disabled CTA: заливка border-ink @ 8%, лейбл label-ink @ 32% (оба exempt по
+  WCAG 1.4.3 как неактивный UI).
 
-### 1.5 Radius
+### 1.5 Радиусы
 
-| Token | Old | Figma baseline |
+| Токен | Было | Figma baseline |
 |---|---|---|
 | `--lab-radius-sm` | 4px | **4px** |
-| `--lab-radius-md` (buttons, inputs) | 8px | **12px** |
-| `--lab-radius-lg` (cards, dialogs) | 12px | **24px** |
+| `--lab-radius-md` (кнопки, поля) | 8px | **12px** |
+| `--lab-radius-lg` (карточки, диалоги) | 12px | **24px** |
 
-### 1.6 Elevation — auth card
+Концентрическое правило сохраняется: контрол 12px + оптический зазор 12px →
+угол карточки 24px — в точности геометрия auth-карточки мока.
 
-Shadow ink is `#101012` (= primary label). The card shadow is a four-layer
-soft stack:
+### 1.6 Elevation — auth-карточка
+
+Краска тени — `#101012` (= primary label ink). Тень карточки — мягкий стек
+из четырёх слоёв:
 
 ```
 --lab-shadow-card:
@@ -79,91 +110,126 @@ soft stack:
   0 2px 2px rgba(16,16,18,.02), 0 4px 2px rgba(16,16,18,.01)
 ```
 
-(committed as `color-mix()` over `--lab-color-shadow` so the dark theme
-re-measures the alphas without touching the geometry).
+(закоммичено как `color-mix()` над `--lab-color-shadow`, чтобы тёмная тема
+перемеряла альфы, не трогая геометрию).
 
-### 1.7 Typography
+### 1.7 Типографика (только Geist)
 
-| Role | Figma value | Token |
+| Роль | Значение Figma | Токен |
 |---|---|---|
-| Card title | 20px / 20px, SemiBold, letter-spacing −0.33px | `--lab-text-title` (new role) |
-| Body / controls (auth surface) | 16px / 24px | `--lab-text-input` (existing 16/24 role) |
-| Caption | 12px, Medium | `--lab-text-caption` (new role, line box 16px) |
+| Заголовок карточки | 20/20, SemiBold, letter-spacing −0.33px | `--lab-text-title` (новая роль) |
+| Body / сабтайтл (auth) | 16/24 Regular, ls −0.25px | `--lab-text-input` (существующая роль 16/24) |
+| Лейбл кнопки | 16/24 Medium, ls 0 | `--lab-text-input` + `--lab-weight-medium` |
+| Caption | 12/12 Medium | `--lab-text-caption` (новая роль; line box 16px — 12px-бокс мока нарушает 4px-сетку внутри 1.4-полосы, см. §3.5) |
 
-### 1.8 Sizes & auth-card metrics
+### 1.8 Размеры и метрики auth-карточки
 
-| Metric | Figma value | Token |
+| Метрика | Значение Figma | Токен |
 |---|---|---|
-| Control height | 48px | `--lab-size-control` |
-| OTP cell | 48 × 56px | `--lab-size-otp-w` / `--lab-size-otp-h` |
-| Auth shell max | 480px | `--lab-shell-auth` (was 440px) |
-| Content column | 384px | `--lab-shell-auth-content` |
-| Card padding | 48 / 48 / 24 / 48 (top/inline/bottom) | `--lab-space-48` + `--lab-space-24` |
-| Card section gap | 36px | `--lab-space-36` (new scale step) |
-| Logo tile | 48px, radius 12 | `--lab-size-logo-tile` + `--lab-radius-md` |
+| Высота контрола | 48px | `--lab-size-control` |
+| OTP-ячейка | 48 × 56px | `--lab-size-otp-w` / `--lab-size-otp-h` |
+| Максимум auth-шелла | 480px | `--lab-shell-auth` (было 440px) |
+| Колонка контента | 384px | `--lab-shell-auth-content` |
+| Padding карточки | 48 / 48 / 24 / 48 (top/inline/bottom) | `--lab-space-48` + `--lab-space-24` |
+| Секционный gap карточки | 36px | `--lab-space-36` (новый шаг шкалы) |
+| Логотип-плитка | 48px, радиус 12 | `--lab-size-logo-tile` + `--lab-radius-md` |
 
 ---
 
-## 2. Dark equivalents (re-measured, not inverted)
+## 2. Тёмные эквиваленты (перемерены, не инвертированы)
 
-Dark stays a separate design (DESIGN.md §2.5). Figma ships only the light
-mock, so dark keeps its solved surfaces and re-measures the new laws:
+Тёмная тема остаётся отдельным дизайном (DESIGN.md §2.5). Figma содержит
+только светлый мок, поэтому тёмная сохраняет решённые поверхности и
+перемеряет новые законы:
 
-- **Label ink:** dark `--lab-label-ink` = `#E4EBF7`; the same 72/52/32% ladder
-  resolves to `#A8ADB7` (8.6:1), `#7D838E` (5.1:1), `#51555C` (exempt).
-  `--lab-label-p` stays the solved `#E9ECF2`.
-- **Borders:** dark keeps declared `#262B35` / `#7E8798` — low-alpha ink over
-  near-black is invisible, so dark declares bases instead of deriving.
-- **Error:** dark anchor stays `#F87171`; `--lab-sentiment-error-text` aliases
-  the anchor (7.2:1 on dark primary — no darker member needed).
-- **Card shadow:** same four-layer geometry at re-measured alphas
-  (40/20/12/8%) over pure black.
-- Gradient/inset finishes recompute from `--lab-on-accent` /
-  `--lab-color-shadow` automatically.
+- **Краска лейблов:** тёмная `--lab-label-ink` = `#E4EBF7`; та же лестница
+  82/76/32% разрешается в `#BDC3CE` (≥9.21:1), `#B0B6C0` (≥8.00:1),
+  `#51555C` (exempt). `--lab-label-p` остаётся решённым `#E9ECF2`.
+- **Границы:** тёмная объявляет базы `#262B35` / `#7E8798` — низкоальфовая
+  краска над почти-чёрным невидима, поэтому деривация заменена объявлением.
+- **Ошибка:** тёмный якорь остаётся `#F87171` (6.98:1 на тёмном primary;
+  спека BL-009 называет `#FF453A` — он тоже проходит 5.67:1, но `#F87171`
+  сохраняет уже решённую тёмную пару и её тинт 6.21:1);
+  `--lab-sentiment-error-text` алиасит якорь — темнее член не нужен.
+- **Тень карточки:** та же четырёхслойная геометрия с перемеренными альфами
+  (40/20/12/8%) над чистым чёрным — по закону DESIGN.md §2.5.
+- Градиент/inset-отделка пересчитываются из `--lab-on-accent` /
+  `--lab-color-shadow` автоматически.
 
-Both dark entry points (`[data-theme]` and `prefers-color-scheme`) carry the
-additions byte-identically (rubric D1).
+Оба тёмных входа (`[data-theme]` и `prefers-color-scheme`) несут добавления
+байт-идентично (rubric D1).
 
 ---
 
-## 3. Documented deviations (owner-accepted)
+## 3. Задокументированные отклонения от мока (с обоснованием)
 
-These are conscious taste-over-rulebook calls. Each keeps a machine assertion
-so it cannot degrade further; none is a silent deletion.
+Каждое отклонение сохраняет машинную проверку; ни одно не является молчаливым
+удалением. Инвариант всей секции: **ни одна текстовая роль не опускается ниже
+4.5:1** — контрастные утверждения текстовых ролей не удаляются и не
+ослабляются, меняются только параметры законов.
 
-### 3.1 Secondary-label scope
+### 3.1 Альфа secondary: 72% → 82%
 
-`#3C3C43 @ 72%` = 4.73:1 on the white card but **4.43:1** on `#F7F8FA`.
-Secondary text is therefore contractually legal **only on card-white
-surfaces** (`--lab-bg-primary`, `--lab-bg-grouped-row`); the page wash is
-chrome, not a reading surface. C1 asserts the legal pairs at full 4.5.
+`#3C3C43 @ 72%` = 4.73:1 на белой карточке, но **4.43:1** на `#F7F8FA` и
+4.17:1 на `#EFF1F4` — провал AA на двух из пяти легальных фонов. Вместо
+сужения области применения роли (что удалило бы текстовые контраст-пары)
+альфа поднята до **82%** → `#5F5F65`, худший фон 5.60:1. Закон мока
+(одна краска ⊕ альфа) сохранён; C1 утверждает все 5 фонов на 4.5.
 
-### 3.2 Tertiary/caption floor
+### 3.2 Альфа tertiary: 52% → 76%
 
-`#3C3C43 @ 52%` = 2.81:1 — below AA for body text. Per Figma, tertiary is
-demoted to **caption/meta only** (never essential copy, never the sole
-carrier of state). The pairs stay asserted at a **≥ 2.7 floor** (rubric C2)
-so the value can't silently sink; essential text uses P/S.
+`#3C3C43 @ 52%` = 2.81:1 — глубокий провал AA даже на белом. Tertiary —
+легальная текстовая роль системы (meta, captions, timestamps), понижать её
+до «нечитаемого тира» значит удалить контраст-гарантию текстовой роли.
+Альфа поднята до **76%** → `#6B6B70`, худший фон 4.68:1. Визуальная
+иерархия P > S > T сохранена и утверждается отдельно (C2 ladder ordering).
+Роль `--lab-text-caption` (12px) существует независимо от цвета: caption
+набирается тем же AA-проходным `--lab-label-t`.
 
-### 3.3 Primary-button label on the anchor
+### 3.3 Заливка CTA: якорь → strong (отделка мока сохранена)
 
-White on `#007AFF` = **4.02:1** — above the 3:1 large-text/UI line, below
-4.5. The Figma button (16px SemiBold on a 48px control, lightened top
-gradient) is accepted at the 3:1 tier; C1 asserts on-accent × anchor ≥ 3 and
-keeps the 4.5 assertions on the strong/hover fills.
+Белый на `#007AFF` = **4.02:1** — выше 3:1 (large/UI), но ниже 4.5:1, а
+лейбл кнопки 16px Medium не квалифицируется как large text (порог WCAG —
+18.66px bold / 24px regular). Существующая пара `--lab-on-accent` ×
+`--lab-accent-blue-strong` (4.66:1) — текстовая контраст-гарантия, удалять
+её нельзя. Заливка остаётся **strong**-членом, а вкус мока переносится
+отделкой: `--lab-accent-gradient` (верхний свет 20% → 0%) +
+`--lab-shadow-inset-control` (нижний inset). Визуально кнопка читается как
+в моке; лейбл держит 4.5:1 на fill и hover в обеих темах.
 
-### 3.4 Control borders are decorative
+### 3.4 Границы контролов декоративны
 
-`#787880 @ 16%` (≈1.2:1) cannot satisfy WCAG 1.4.11 as a boundary. In the
-Figma baseline the control boundary is carried by the **filled field surface
-and the focus ring** (accent ≥ 3:1, asserted), not the border. The old 3:1
-border pairs are retired with this note; a rubric check still enforces the
-ladder ordering (strong ≥ hairline ink share).
+`#787880 @ 16%` (≈1.21:1) не может удовлетворить WCAG 1.4.11 как граница
+контрола. В базе Figma границу контрола несёт **заливка поля и focus-ring**
+(якорь ≥ 3:1, утверждается), а не бордер. Старые 3:1-пары бордера
+(non-text UI, не текстовые роли) отставлены с этой записью; рубрика
+по-прежнему утверждает порядок лестницы (strong заметнее hairline, C2).
+Это единственная категория, где утверждение снято, — и она не текстовая.
 
-### 3.5 Off-ladder type roles
+### 3.5 Роли типографики вне лестницы
 
-20px title and 12px caption sit outside the ×1.25 ladder and the 13px
-persistent-UI floor. Both are **auth-surface roles** from the mock: the title
-is a one-line lockup (20/20, −0.33px), the caption is non-essential meta.
-The ladder law (T7) still governs display/h1/h2/h3/body; the two new roles
-are asserted by value (F1) instead.
+20px title и 12px caption лежат вне лестницы ×1.25 и вне пола 13px.
+Обе — роли auth-поверхности из мока: title — однострочный логотип-замок
+(20/20, −0.33px ≙ −0.0165em), caption — несущественная мета. Line box
+caption поднят с 12 до **16px** (мок задаёт 12/12 = 1.0 — ниже полосы
+1.4 для многострочного текста и вне 4px-сетки бокса; 12/16 = 1.333 на
+сетке). Закон лестницы (T7) продолжает управлять display/h1/h2/h3/body;
+две новые роли утверждаются по значению (F1).
+
+### 3.6 Текст ошибки: якорь → выведенный член
+
+`#FF3B30` на белом = 3.55:1 — провал AA для body-текста; хелпер мока
+`#FF3B30 @ 72%` = 2.67:1 — ещё глубже (замер по BL-009: «если < 4.5:1 —
+использовать полную непрозрачность и зафиксировать решение»; полная
+непрозрачность тоже проваливает, поэтому решение сильнее). Введён
+выведенный член: `--lab-sentiment-error-text` = якорь ⊕ 28% чёрного →
+`#B82A23` (6.19:1 на карточке, 5.40:1 на тинте ошибки). Якорь `#FF3B30`
+остаётся для границ полей ошибки, иконок и крупных индикаторов (3:1,
+утверждается). Тёмная тема алиасит якорь — там он проходит сам.
+
+### 3.7 Тень auth-карточки — легальное исключение hairline-first
+
+Рабочие поверхности остаются hairline-first (DESIGN.md §7). Auth-карточка —
+плавающая брендовая поверхность мока и получает выделенный токен
+`--lab-shadow-card` в лестнице elevation, не заменяя уровень 0 для
+панелей/таблиц.
