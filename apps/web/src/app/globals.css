@@ -47,6 +47,13 @@
   --text-caps--line-height: var(--lab-text-caps-lh);
   --text-caps--font-weight: var(--lab-text-caps-weight);
   --text-caps--letter-spacing: var(--lab-text-caps-tracking);
+  --text-title: var(--lab-text-title);
+  --text-title--line-height: var(--lab-text-title-lh);
+  --text-title--font-weight: var(--lab-text-title-weight);
+  --text-title--letter-spacing: var(--lab-text-title-tracking);
+  --text-caption: var(--lab-text-caption);
+  --text-caption--line-height: var(--lab-text-caption-lh);
+  --text-caption--font-weight: var(--lab-text-caption-weight);
   --text-mono-size: var(--lab-text-mono);
   --text-mono-size--line-height: var(--lab-text-mono-lh);
   --text-input: var(--lab-text-input);
@@ -77,6 +84,7 @@
   --color-info-bg: var(--lab-sentiment-info-bg);
   --color-hairline: var(--lab-border-hairline);
   --color-border-strong: var(--lab-border-strong);
+  --color-error-text: var(--lab-sentiment-error-text);
 
   /* Spacing (DESIGN.md §4): the numeric multiplier scale is disabled — only
    * the eight lab steps and the touch-target size exist, named after their
@@ -89,13 +97,19 @@
   --spacing-lab-16: var(--lab-space-16);
   --spacing-lab-24: var(--lab-space-24);
   --spacing-lab-32: var(--lab-space-32);
+  --spacing-lab-36: var(--lab-space-36);
   --spacing-lab-48: var(--lab-space-48);
   --spacing-lab-64: var(--lab-space-64);
   --spacing-touch: var(--lab-size-touch);
+  --spacing-control: var(--lab-size-control);
+  --spacing-otp-w: var(--lab-size-otp-w);
+  --spacing-otp-h: var(--lab-size-otp-h);
+  --spacing-logo-tile: var(--lab-size-logo-tile);
 
   /* Containers (DESIGN.md §4 shell maxima + §3.3 measure). */
   --container-*: initial;
   --container-auth: var(--lab-shell-auth);
+  --container-auth-content: var(--lab-shell-auth-content);
   --container-content: var(--lab-shell-content);
   --container-list: var(--lab-shell-list);
   --container-measure: var(--lab-measure);
@@ -123,7 +137,10 @@
   --shadow-1: var(--lab-shadow-1);
   --shadow-2: var(--lab-shadow-2);
   --shadow-3: var(--lab-shadow-3);
+  --shadow-card: var(--lab-shadow-card);
   --shadow-focus: var(--lab-shadow-focus);
+  --inset-shadow-*: initial;
+  --inset-shadow-control: var(--lab-shadow-inset-control);
 
   /* Motion: only the named lab easings exist; duration comes from
    * duration-(--lab-motion-*) or the transition-controls utility. */
@@ -136,6 +153,30 @@
   --blur-*: initial;
   --perspective-*: initial;
   --aspect-*: initial;
+
+  /* Auth-surface roles & metrics (FIGMA-BASELINE.md §1.7/§1.8): card title
+   * lockup, caption/meta tier, 48px control height, OTP cell, logo tile and
+   * the 36px card section gap — all read from the --lab-* sources. */
+  --text-title: var(--lab-text-title);
+  --text-title--line-height: var(--lab-text-title-lh);
+  --text-title--font-weight: var(--lab-text-title-weight);
+  --text-title--letter-spacing: var(--lab-text-title-tracking);
+  --text-caption: var(--lab-text-caption);
+  --text-caption--line-height: var(--lab-text-caption-lh);
+  --text-caption--font-weight: var(--lab-text-caption-weight);
+  --text-caption--letter-spacing: var(--lab-text-caption-tracking);
+
+  /* Body-size error text member (FIGMA-BASELINE.md §1.4 error anchor law). */
+  --color-error-text: var(--lab-sentiment-error-text);
+
+  --spacing-lab-36: var(--lab-space-36);
+  --spacing-control: var(--lab-size-control);
+  --spacing-otp-w: var(--lab-size-otp-w);
+  --spacing-otp-h: var(--lab-size-otp-h);
+  --spacing-logo-tile: var(--lab-size-logo-tile);
+
+  /* Four-layer soft auth-card stack (FIGMA-BASELINE.md §1.6). */
+  --shadow-card: var(--lab-shadow-card);
 }
 
 /*
@@ -177,4 +218,87 @@
 }
 @utility opacity-inactive {
   opacity: var(--lab-opacity-inactive);
+}
+
+/*
+ * Figma-baseline finish for filled primary actions (FIGMA-BASELINE.md §1.4):
+ * the accent fill is topped with the token gradient and closed with the inset
+ * bottom shadow. One utility so every filled control shares the exact finish.
+ */
+@utility bg-accent-finish {
+  background-color: var(--lab-accent-blue);
+  background-image: var(--lab-accent-gradient);
+  box-shadow: var(--lab-shadow-inset-control);
+}
+@utility bg-accent-finish-hover {
+  background-color: var(--lab-accent-blue-hover);
+  background-image: var(--lab-accent-gradient);
+  box-shadow: var(--lab-shadow-inset-control);
+}
+
+/*
+ * Disabled fill for the filled primary action (Figma login-default frame):
+ * border-ink 8% wash, no gradient, no inset — paired with text-label-q.
+ */
+@utility bg-accent-finish-disabled {
+  background-color: var(--lab-border-hairline);
+  background-image: none;
+  box-shadow: none;
+}
+
+/*
+ * OTP hidden input (DESIGN-BRIEF A4: single field preferred for a11y).
+ * The real <input> stretches invisibly across the visual cell row so taps,
+ * paste and the OS one-time-code autofill all land on one control; the cells
+ * are aria-hidden presentation. Opacity 0 also hides the native outline —
+ * focus is re-expressed on the active cell (accent border + shadow-focus).
+ */
+@utility auth-overlay-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: text;
+}
+
+/*
+ * Floating field label (Figma Input component): rest = centered in the 48px
+ * control at input size; float = caption size pinned to the top padding.
+ * Class swap is driven by React state (focus/value) — no arbitrary variants.
+ */
+@utility field-label-rest {
+  position: absolute;
+  left: var(--lab-space-16);
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+@utility field-label-float {
+  position: absolute;
+  left: var(--lab-space-16);
+  top: var(--lab-space-4);
+  transform: none;
+  pointer-events: none;
+}
+
+/*
+ * Spinner rotation — the ONE legal animation loop (DESIGN.md §6.3 loading
+ * row). Duration reads the calm motion token; under prefers-reduced-motion
+ * the token collapses to 80ms, and the animation is additionally disabled
+ * below so the indicator reads as a static glyph, not a fast blur.
+ */
+@keyframes lab-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@utility animate-lab-spin {
+  /* 2× ceremony = 800ms per revolution; traced to the motion tokens. */
+  animation: lab-spin calc(var(--lab-motion-ceremony) * 2) var(--lab-ease-linear) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-lab-spin {
+    animation: none;
+  }
 }
