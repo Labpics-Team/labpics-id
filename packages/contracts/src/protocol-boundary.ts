@@ -30,6 +30,9 @@ export const boundaryOperationSchema = z.enum([
   "artifact.put",
   "artifact.consume",
   "artifact.delete",
+  "artifact.findByUid",
+  "artifact.findByUserCode",
+  "artifact.revokeByGrantId",
   "audit.append",
   "outbox.enqueue",
 ]);
@@ -43,6 +46,8 @@ export const idempotentBoundaryReads = new Set<BoundaryOperation>([
   "consent.get",
   "key.list",
   "artifact.get",
+  "artifact.findByUid",
+  "artifact.findByUserCode",
 ]);
 
 const base = {
@@ -75,6 +80,9 @@ export const boundaryRequestSchema = z.discriminatedUnion("operation", [
   }),
   request("artifact.consume", { model: id, artifactId: id }),
   request("artifact.delete", { model: id, artifactId: id }),
+  request("artifact.findByUid", { model: id, uid: z.string().uuid() }),
+  request("artifact.findByUserCode", { model: id, userCode: z.string().min(1).max(64) }),
+  request("artifact.revokeByGrantId", { grantId: z.string().uuid() }),
   request("audit.append", {
     eventType: id,
     actorId: id.optional(),

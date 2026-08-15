@@ -1,4 +1,5 @@
 import Provider from "oidc-provider";
+import { createBoundaryAdapter } from "./boundary-adapter.ts";
 import type { BoundaryClient } from "./boundary.ts";
 import type { ProtocolConfig } from "./config.ts";
 import { FailClosedExternalAdapter } from "./fail-closed-adapter.ts";
@@ -6,7 +7,7 @@ import type { Logger } from "./lib/logger.ts";
 
 export interface ProtocolAppOptions {
   readonly config: ProtocolConfig;
-  readonly boundaryClient: BoundaryClient;
+  readonly boundaryClient?: BoundaryClient;
   readonly logger: Logger;
 }
 
@@ -14,11 +15,17 @@ export interface ProtocolAppOptions {
  * Creates only the protocol-facing process. Identity, consent and persistence
  * remain behind the authenticated boundary and are wired by later ch03 slices.
  */
-export function createProtocolApp({ config, logger }: ProtocolAppOptions): Provider {
+export function createProtocolApp({ config, boundaryClient, logger }: ProtocolAppOptions): Provider {
+  // Select adapter: external with boundary client uses durable BoundaryAdapter,
+  // external without boundary client fails closed, memory only in dev.
+  const adapterConfig = (() => {
+    if (config.adapter !== "external") return {};
+    if (boundaryClient) return { adapter: createBoundaryAdapter(boundaryClient) };
+    return { adapter: FailClosedExternalAdapter };
+  })();
+
   const provider = new Provider(config.issuer, {
-    // "external" must never silently degrade to the in-memory quick-start
-    // adapter; until platform stores land, stateful operations fail closed.
-    ...(config.adapter === "external" ? { adapter: FailClosedExternalAdapter } : {}),
+    ...adapterConfig,
     clients: [],
     jwks: config.jwks === "generated" ? undefined : config.jwks,
     cookies: {

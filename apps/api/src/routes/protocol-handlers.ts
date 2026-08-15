@@ -131,5 +131,35 @@ export function createProtocolBoundaryHandlers(
       );
       return null;
     },
+
+    "artifact.findByUid": async (req) => {
+      if (req.operation !== "artifact.findByUid") throw new Error("Invalid operation");
+      return unitOfWork.run(async (ctx) =>
+        artifacts.findArtifactByUid(
+          req.payload.model as Parameters<typeof artifacts.findArtifactByUid>[0],
+          req.payload.uid,
+          ctx,
+        ),
+      );
+    },
+
+    "artifact.findByUserCode": async (req) => {
+      if (req.operation !== "artifact.findByUserCode") throw new Error("Invalid operation");
+      return unitOfWork.run(async (ctx) =>
+        artifacts.findArtifactByUserCode(
+          req.payload.model as Parameters<typeof artifacts.findArtifactByUserCode>[0],
+          req.payload.userCode,
+          ctx,
+        ),
+      );
+    },
+
+    "artifact.revokeByGrantId": async (req) => {
+      if (req.operation !== "artifact.revokeByGrantId") throw new Error("Invalid operation");
+      await unitOfWork.run(async (ctx) =>
+        artifacts.revokeArtifactsByGrantId(req.payload.grantId, ctx),
+      );
+      return null;
+    },
   };
 }
