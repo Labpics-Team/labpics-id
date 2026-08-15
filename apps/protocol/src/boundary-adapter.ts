@@ -35,9 +35,8 @@ export class BoundaryAdapter {
     }
 
     const expValue = payload.exp;
-    const expiresAt = typeof expValue === "number"
-      ? new Date(expValue * 1000).toISOString()
-      : undefined;
+    const expiresAt =
+      typeof expValue === "number" ? new Date(expValue * 1000).toISOString() : undefined;
 
     await this.#boundaryClient.request({
       version: "1",
@@ -81,7 +80,10 @@ export class BoundaryAdapter {
     return record.payload;
   }
 
-  async findByUserCode(model: string, userCode: string): Promise<Record<string, unknown> | undefined> {
+  async findByUserCode(
+    model: string,
+    userCode: string,
+  ): Promise<Record<string, unknown> | undefined> {
     const result = await this.#boundaryClient.request({
       version: "1",
       correlationId: randomUUID(),

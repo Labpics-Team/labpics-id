@@ -1,6 +1,6 @@
 import Provider from "oidc-provider";
-import { BoundaryAdapter } from "./boundary-adapter.ts";
 import type { BoundaryClient } from "./boundary.ts";
+import { BoundaryAdapter } from "./boundary-adapter.ts";
 import type { ProtocolConfig } from "./config.ts";
 import type { Logger } from "./lib/logger.ts";
 
@@ -15,7 +15,11 @@ export interface ProtocolAppOptions {
  * Identity, consent and persistence are wired through the authenticated
  * boundary to the platform API, which owns the SSOT for all provider state.
  */
-export function createProtocolApp({ config, boundaryClient, logger }: ProtocolAppOptions): Provider {
+export function createProtocolApp({
+  config,
+  boundaryClient,
+  logger,
+}: ProtocolAppOptions): Provider {
   const boundaryAdapter = new BoundaryAdapter(boundaryClient);
 
   const provider = new Provider(config.issuer, {
@@ -145,7 +149,12 @@ export function createProtocolApp({ config, boundaryClient, logger }: ProtocolAp
           }
         }
         // Persist consent via boundary if approved
-        if (result.login?.accountId && result.consent && !result.consent.reject && result.consent.scope) {
+        if (
+          result.login?.accountId &&
+          result.consent &&
+          !result.consent.reject &&
+          result.consent.scope
+        ) {
           const details = await provider.interactionDetails(ctx.req, ctx.res);
           const clientId = String(details.params.client_id);
           await boundaryClient.request({
@@ -159,8 +168,10 @@ export function createProtocolApp({ config, boundaryClient, logger }: ProtocolAp
             },
           });
         }
-        await provider.interactionFinished(ctx.req, ctx.res, result, { mergeWithLastSubmission: false });
-      } catch (error) {
+        await provider.interactionFinished(ctx.req, ctx.res, result, {
+          mergeWithLastSubmission: false,
+        });
+      } catch (_error) {
         ctx.status = 400;
         ctx.body = { error: "interaction_failed" };
       }
