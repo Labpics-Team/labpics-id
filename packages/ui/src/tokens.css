@@ -7,7 +7,7 @@
  *   - This file and DESIGN.md are the only places raw color values may appear.
  *   - Base colors are declared; interaction colors are DERIVED with color-mix
  *     from the bases (hover = 12% toward black, tints = 10% sentiment over the
- *     page bg, disabled = tertiary label at 60% strength). The QA rubric
+ *     page bg, label ladder = one ink at 82/76/32% over the card). The QA rubric
  *     resolves every color-mix()/var() chain and asserts WCAG 2.2 AA for each
  *     pair in DESIGN.md §2 in BOTH themes, plus OKLCH hue stability (<10° per
  *     accent family).
@@ -33,16 +33,25 @@
    * Figma baseline (docs/design/FIGMA-BASELINE.md): one label ink composited
    * over the card surface at fixed strengths — the ladder is a LAW, not four
    * hand-picked greys. Primary is declared (pure ink reads muddy at 100%);
-   * secondary/tertiary/disabled derive from the ink:
-   *   s = ink 72% over card (4.7:1 on card — AA body text, card surfaces)
-   *   t = ink 52% over card (caption/meta tier only — floor-asserted, C2)
-   *   q = ink 32% over card (disabled; WCAG 1.4.3 exempts inactive UI)
-   */
+   * secondary/tertiary/disabled derive from the ink. The Figma mock alphas
+   * (72/52%) fail AA off the white card (4.43:1 / 2.81:1), so the strengths
+   * are AA-SOLVED per theme while keeping Figma's one-ink law:
+   *   s = ink 82% over card (≥5.6:1 on every surface — AA body text)
+   *   t = ink 76% over card (≥4.68:1 on every surface — AA body text)
+   *   q = ink 32% over card (exact Figma disabled alpha; WCAG 1.4.3 exempt)
+   * The SAME strengths hold in dark from the dark ink (≥9.2 / ≥8.0:1). */
   --lab-label-ink: #3c3c43;
   --lab-label-p: #101012;
-  --lab-label-s: color-mix(in srgb, var(--lab-label-ink) 72%, var(--lab-bg-primary));
-  --lab-label-t: color-mix(in srgb, var(--lab-label-ink) 52%, var(--lab-bg-primary));
+  --lab-label-s: color-mix(in srgb, var(--lab-label-ink) 82%, var(--lab-bg-primary));
+  --lab-label-t: color-mix(in srgb, var(--lab-label-ink) 76%, var(--lab-bg-primary));
   --lab-label-q: color-mix(in srgb, var(--lab-label-ink) 32%, var(--lab-bg-primary));
+
+  /* Decorative-only ink — the exact Figma 52% strength (2.81:1 on the light
+   * card), retained where WCAG permits it: the wordmark/logotype tint
+   * (WCAG 1.4.3 logotype exemption) and purely decorative graphics.
+   * FORBIDDEN for text of any size — text uses the AA-solved P/S/T ladder
+   * above. Recomputes per theme from the ink and card bases. */
+  --lab-ink-faint: color-mix(in srgb, var(--lab-label-ink) 52%, var(--lab-bg-primary));
 
   /* ---- Color bases: Labpics Blue accent family (light) ----
    * anchor — brand #007AFF: focus ring, active nav, live/health, large text.
@@ -60,10 +69,11 @@
   --lab-accent-text: var(--lab-accent-blue-strong);
   --lab-on-accent: #ffffff;
 
-  /* Figma baseline: the filled primary action is the ANCHOR fill finished
-   * with a top-light gradient overlay and an inset bottom shadow
-   * (docs/design/FIGMA-BASELINE.md §1.4). Both finishes derive from existing
-   * bases, so themes recompute them automatically. */
+  /* Figma baseline: the filled primary action keeps the mock's FINISH — a
+   * top-light gradient overlay + an inset bottom shadow — over the strong
+   * fill (the mock's anchor fill puts white at 4.02:1, below body-text AA;
+   * see docs/design/FIGMA-BASELINE.md §3.3). Both finishes derive from
+   * existing bases, so themes recompute them automatically. */
   --lab-accent-gradient: linear-gradient(
     180deg,
     color-mix(in srgb, var(--lab-on-accent) 20%, transparent),
@@ -73,9 +83,10 @@
     color-mix(in srgb, var(--lab-color-shadow) 12%, transparent);
 
   /* ---- Color bases: sentiments (light; text/icon roles) ----
-   * Error anchor is the Figma baseline signal red #FF3B30 (3.3:1 — icon/large
-   * tier); body-size error TEXT uses the darkened text member, one law:
-   * anchor ⊕ 28% black (4.6:1 on card). Dark aliases the anchor (7.2:1). */
+   * Error anchor is the Figma baseline signal red #FF3B30 (3.55:1 — icon/
+   * border/large tier); body-size error TEXT uses the darkened text member,
+   * one law: anchor ⊕ 28% black (#b82a23, 6.19:1 on card, 5.40:1 on the
+   * error tint). Dark aliases the anchor (#f87171, 6.98:1). */
   --lab-sentiment-success: #166534;
   --lab-sentiment-warning: #92400e;
   --lab-sentiment-error: #ff3b30;
@@ -305,7 +316,7 @@
   --lab-bg-grouped: #11141a;
   --lab-bg-grouped-row: #14171e;
 
-  /* Label ink re-measured for dark; the 72/52/32% ladder recomputes from it.
+  /* Label ink re-measured for dark; the 82/76/32% ladder recomputes from it.
    * Primary stays the solved near-white (pure ink at 100% glares). */
   --lab-label-ink: #e4ebf7;
   --lab-label-p: #e9ecf2;
@@ -349,7 +360,7 @@
     --lab-bg-grouped: #11141a;
     --lab-bg-grouped-row: #14171e;
 
-    /* Label ink re-measured for dark; the 72/52/32% ladder recomputes from it.
+    /* Label ink re-measured for dark; the 82/76/32% ladder recomputes from it.
      * Primary stays the solved near-white (pure ink at 100% glares). */
     --lab-label-ink: #e4ebf7;
     --lab-label-p: #e9ecf2;

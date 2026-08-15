@@ -2,7 +2,7 @@
 
 **Status:** gate document — no page/component UI may be written before this file is merged.
 **Source brief:** `docs/design/DESIGN-BRIEF.md` (v2, 51 screens, state contract, QA rubric).
-**Taste baseline:** `docs/design/FIGMA-BASELINE.md` (owner Figma mock, BL-009) — where taste and a previously hand-solved value conflict, the Figma baseline wins and the law is re-derived; every accepted deviation is documented there and floor-asserted by the rubric.
+**Taste baseline:** `docs/design/FIGMA-BASELINE.md` (owner Figma mock, file `vFWveYl6n4pLqSut3GFQxk`, BL-009) — where taste and a previously hand-solved value conflict, the Figma baseline wins and the law is re-derived; the one non-negotiable is WCAG AA for text roles (a mock value that fails AA keeps the mock's *law* with an AA-solved parameter). Every accepted deviation is documented there and machine-asserted by the rubric.
 **Brand source:** `lab.pics/brand` (verified 2026-08-11): flask mark, Labpics Blue `#007AFF`, Geist, Swiss legacy.
 **Token source of truth:** `packages/ui/src/tokens.css` — the only file (besides this document) where raw color values may appear. Interaction colors are **derived** there with `color-mix()` from declared bases; hand-picking a hover/tint/disabled value is a violation.
 **Machine checks:** `packages/ui/qa/qa-rubric.test.ts` (`bun run qa:rubric`) resolves every `color-mix()`/`var()` chain and enforces: token purity in CSS **and TSX**, WCAG 2.2 AA for every pair in §2.6 in both themes, OKLCH hue stability of the accent family, the typography derivation law, dark-theme anti-drift, the brand anchor, forbidden decorative hues, `transition: all` prohibition, the dev-tooling gate (structural), icon-family purity, and full 51-screen/component reconciliation.
@@ -61,12 +61,13 @@ The palette has exactly two kinds of values:
 |---|---|---|---|
 | `--lab-accent-blue-hover` | strong ⊕ 12% black | `#0056B4` | `#0D62C2` |
 | `--lab-sentiment-*-bg` | sentiment 10% over `--lab-bg-primary` | e.g. success `#EAF1ED` | e.g. success `#132720` |
-| `--lab-label-s` | label ink 72% over card | `#737378` | `#A8ADB7` |
-| `--lab-label-t` (caption tier) | label ink 52% over card | `#9A9A9D` | `#7D838E` |
+| `--lab-label-s` | label ink 82% over card | `#5F5F65` | `#BDC3CE` |
+| `--lab-label-t` | label ink 76% over card | `#6B6B70` | `#B0B6C0` |
 | `--lab-label-q` (disabled) | label ink 32% over card | `#C1C1C3` | `#51555C` |
+| `--lab-ink-faint` (decorative only) | label ink 52% over card | `#9A9A9D` | `#7C818A` |
 | `--lab-border-hairline` | border ink 8% over card (light) | `#F4F4F5` | declared `#262B35` |
 | `--lab-border-strong` | border ink 16% over card (light) | `#E9E9EB` | declared `#7E8798` |
-| `--lab-sentiment-error-text` | error anchor ⊕ 28% black (light) | `#B72A22` | aliases anchor `#F87171` |
+| `--lab-sentiment-error-text` | error anchor ⊕ 28% black (light) | `#B82A23` | aliases anchor `#F87171` |
 | `--lab-shadow-focus` | `--lab-focus-color` at 30% alpha, 4px spread | `rgba(0,122,255,.3)` ring | same law |
 | `--lab-accent-text` (dark only) | anchor 66% ⊕ 34% white | — | `#57A7FF` |
 
@@ -78,15 +79,15 @@ The accent is the **Labpics Blue perceptual family**, anchored at brand **`#007A
 
 | Token | Light | Dark | Role |
 |---|---|---|---|
-| `--lab-accent-blue` | `#007AFF` | `#007AFF` | **Signal anchor** — focus ring, active nav, live/health indicators, **filled primary-action fill** (Figma baseline), large accents (≥3:1 non-text/large AA) |
-| `--lab-accent-blue-strong` | `#0062CC` | `#0F6FDD` | Solved strong member: accent text (light), emphasis fills where 4.5:1 labels are required |
+| `--lab-accent-blue` | `#007AFF` | `#007AFF` | **Signal anchor** — focus ring, active nav, live/health indicators, large accents (≥3:1 non-text/large AA) |
+| `--lab-accent-blue-strong` | `#0062CC` | `#0F6FDD` | Filled primary-action background (solved so `--lab-on-accent` holds 4.5:1) |
 | `--lab-accent-blue-hover` | derived `#0056B4` | derived `#0D62C2` | Primary-action hover fill (white on it: 7.02:1 / 5.93:1) |
 | `--lab-accent-text` | = strong (`#0062CC`) | derived `#57A7FF` | Accent-colored body text and links (4.5:1+ on primary/secondary bg) |
 | `--lab-on-accent` | `#FFFFFF` | `#FFFFFF` | Label on accent fills |
-| `--lab-accent-gradient` | derived: `--lab-on-accent` 20% → transparent, 180° | same law | Top-light finish over the anchor fill (Figma baseline §1.4) |
+| `--lab-accent-gradient` | derived: `--lab-on-accent` 20% → transparent, 180° | same law | Top-light finish over the filled primary action (Figma baseline §1.4) |
 | `--lab-shadow-inset-control` | derived: inset 0 −1px 1px shadow ink @ 12% | same law | Bottom inset finish on filled controls |
 
-**Filled primary action (Figma baseline):** the fill is the **anchor itself** finished with `--lab-accent-gradient` + `--lab-shadow-inset-control`. Its 16px SemiBold label on a 48px control sits at the large-text tier — white on `#007AFF` = 4.02:1, asserted ≥ 3:1 (`FIGMA-BASELINE.md` §3.3); the strong/hover members keep their 4.5:1 assertions.
+**Filled primary action (Figma baseline):** the Figma mock fills the CTA with the raw anchor, but white on `#007AFF` is **4.02:1** — below body-text AA for a 16px Medium label. The reconciliation keeps the mock's **finish** (`--lab-accent-gradient` + `--lab-shadow-inset-control`) over the **strong** fill, preserving the 4.5:1 label assertions on strong and hover (`FIGMA-BASELINE.md` §3.3).
 
 **Hue stability (machine-checked):** in OKLCH, every member of the family stays within **10° of hue** of the anchor per theme. Measured: light family spread 0.6° (H ≈ 257°), dark family spread 4.8° (H 252.6–257.4°). A "blue" that drifts toward violet or cyan fails the rubric.
 
@@ -98,7 +99,7 @@ Neutral bases live near the accent hue (OKLCH H 258–268°, chroma ≤ 0.027) s
 
 **Surface inversion (Figma baseline):** the auth mock reads page = grey wash (`--lab-bg-secondary` `#F7F8FA`), card = white (`--lab-bg-primary`). Working text lives on card-white surfaces; the wash is chrome, not a reading surface.
 
-**Label ladder law (Figma baseline):** one label ink per theme (`--lab-label-ink` — light `#3C3C43`, dark `#E4EBF7`) composited over the card at fixed strengths: secondary 72%, tertiary 52%, disabled 32%. Primary is declared (pure ink at full strength reads muddy/glaring). Tertiary is the **caption/meta tier** — never essential copy (floor-asserted, `FIGMA-BASELINE.md` §3.2).
+**Label ladder law (Figma baseline):** one label ink per theme (`--lab-label-ink` — light `#3C3C43`, dark `#E4EBF7`) composited over the card at fixed strengths: secondary 82%, tertiary 76%, disabled 32%. Primary is declared (pure ink at full strength reads muddy/glaring). The Figma mock's raw alphas (72/52%) fail AA off the white card, so the strengths are **AA-solved** while keeping the mock's one-ink law — every P/S/T pairing holds 4.5:1 on all five backgrounds in both themes (`FIGMA-BASELINE.md` §3.1–3.2).
 
 | Token | Light | Dark | Role |
 |---|---|---|---|
@@ -109,9 +110,10 @@ Neutral bases live near the accent hue (OKLCH H 258–268°, chroma ≤ 0.027) s
 | `--lab-bg-grouped-row` | `#FFFFFF` | `#14171E` | Grouped list rows |
 | `--lab-label-ink` | `#3C3C43` | `#E4EBF7` | Label ink base — never used directly |
 | `--lab-label-p` | `#101012` | `#E9ECF2` | Primary text (17.9:1 on card) |
-| `--lab-label-s` | derived `#737378` | derived `#A8ADB7` | Secondary text — card surfaces only (4.73:1) |
-| `--lab-label-t` | derived `#9A9A9D` | derived `#7D838E` | Caption/meta tier only (§2.1; C2 floor ≥ 2.7) |
+| `--lab-label-s` | derived `#5F5F65` | derived `#BDC3CE` | Secondary text (≥5.60:1 light / ≥9.21:1 dark on every surface) |
+| `--lab-label-t` | derived `#6B6B70` | derived `#B0B6C0` | Tertiary/caption text (≥4.68:1 light / ≥8.00:1 dark on every surface) |
 | `--lab-label-q` | derived `#C1C1C3` | derived `#51555C` | Disabled (WCAG 1.4.3 inactive-UI exemption) |
+| `--lab-ink-faint` | derived `#9A9A9D` | derived `#7C818A` | **Decorative only** — wordmark tint (1.4.3 logotype exemption), decorative graphics; the exact Figma 52% strength. Never text |
 | `--lab-border-ink` | `#787880` | — (dark declares) | Border ink base — never used directly |
 | `--lab-border-hairline` | derived `#F4F4F5` | `#262B35` | Decorative separators (no AA requirement) |
 | `--lab-border-strong` | derived `#E9E9EB` | `#7E8798` | Input/control borders — **decorative** (Figma §3.4): the control boundary is the field surface + focus ring, not the border |
@@ -125,7 +127,7 @@ Sentiments communicate status only — never primary actions (destructive primar
 | `--lab-sentiment-success` | `#166534` | `#4ADE80` | Success text/icon |
 | `--lab-sentiment-warning` | `#92400E` | `#FBBF24` | Warning text/icon |
 | `--lab-sentiment-error` | `#FF3B30` | `#F87171` | Error **anchor** — icon/large tier (≥3:1); Figma baseline signal red |
-| `--lab-sentiment-error-text` | derived (§2.1) `#B72A22` | aliases anchor | Error body text (4.5:1 on card and on the error tint) |
+| `--lab-sentiment-error-text` | derived (§2.1) `#B82A23` | aliases anchor | Error body text (4.5:1 on card and on the error tint) |
 | `--lab-sentiment-info` | `#075985` | `#38BDF8` | Info text/icon |
 | `--lab-sentiment-*-bg` | derived (§2.1) | derived (§2.1) | Alert/badge surfaces — asserted per §2.6 in both themes |
 
@@ -140,7 +142,7 @@ The rest of the dark palette is solved per surface (label P on dark primary: 15.
 
 ### 2.6 Contrast contract (WCAG 2.2 AA, machine-checked)
 
-Every legal foreground/background composition is enumerated in `packages/ui/qa/contrast-pairs.ts` and asserted programmatically in **both themes** on every test run — the checker first *resolves* `var()` and `color-mix()` chains to hex, so derived tokens are verified as rendered: **4.5:1** for body text, **3:1** for large text and non-text UI. The full matrix: label P × all five backgrounds (4.5), label S × card surfaces (4.5, scope per the Figma baseline §3.1), accent text on primary/secondary (4.5), on-accent on the anchor fill (3, large-tier per Figma §3.3) and on strong/hover fills (4.5), signal anchor on primary/secondary (3, non-text/large only), sentiments on primary bg and on their derived tints (error split: text member at 4.5, anchor at 3). The caption tier (label T × card surfaces) lives in `CAPTION_PAIRS` with a ≥ 2.7 floor (rubric C2) — meta-only, never essential copy. Adding a new pairing to a component without adding it to the manifest and this table is a design-system violation.
+Every legal foreground/background composition is enumerated in `packages/ui/qa/contrast-pairs.ts` and asserted programmatically in **both themes** on every test run — the checker first *resolves* `var()` and `color-mix()` chains to hex, so derived tokens are verified as rendered: **4.5:1** for body text, **3:1** for large text and non-text UI. The full matrix: labels P/S/T × all five backgrounds (4.5), accent text on primary/secondary (4.5), on-accent on strong/hover fills (4.5), signal anchor on primary/secondary (3, non-text/large only), sentiments on primary bg and on their derived tints (error split per the Figma baseline: text member `--lab-sentiment-error-text` at 4.5, anchor `#FF3B30` at 3 for icons/borders/large). The rubric additionally asserts the label and border ladder orderings (C2). Adding a new pairing to a component without adding it to the manifest and this table is a design-system violation.
 
 Measured ratios are produced by the rubric run (`bun run qa:rubric`), not maintained by hand — the manifest is the contract, the test output is the evidence.
 
@@ -338,7 +340,7 @@ The **focus ring has its own dedicated token** (`--lab-shadow-focus` = `0 0 0 4p
 | `transition: all` / `transition-all` prohibition | T6 | every run |
 | Typography derivation law (scale from base, 4px line boxes) | T7 | every run |
 | WCAG AA contrast, all §2.6 pairs, both themes, `color-mix` resolved | C1 | every run |
-| Caption-tier floor (≥ 2.7), label/border ladder ordering | C2 | every run |
+| Label/border ladder ordering (one-ink laws stay monotonic) | C2 | every run |
 | Figma baseline values (ink ladders, error anchor, radii, sizes, title/caption roles, card shadow, control finish) | F1 | every run |
 | OKLCH hue stability of the accent family (<10°) | O1 | every run |
 | Dark-theme anti-drift | D1 | every run |
