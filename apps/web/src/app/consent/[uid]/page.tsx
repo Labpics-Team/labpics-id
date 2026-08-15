@@ -10,7 +10,7 @@ export default async function ConsentPage({ params }: ConsentPageProps) {
 
   const protocolIssuer = process.env.PROTOCOL_ISSUER || "https://id.lab.pics";
 
-  let details;
+  let details: unknown;
   try {
     const res = await fetch(`${protocolIssuer}/interaction/${uid}`, {
       cache: "no-store",

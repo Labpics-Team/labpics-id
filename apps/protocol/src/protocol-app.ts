@@ -110,7 +110,7 @@ export function createProtocolApp({ config, boundaryClient, logger }: ProtocolAp
           sessionId: details.uid,
           existingConsent: consentRecord?.scopes || null,
         };
-      } catch (error) {
+      } catch (_error) {
         ctx.status = 404;
         ctx.body = { error: "interaction_not_found" };
       }

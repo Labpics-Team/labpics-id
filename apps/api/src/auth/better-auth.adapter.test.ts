@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createDb, createDbPool, PostgresIdentityAdapter, PostgresUnitOfWork } from "@labpics/db";
-import type { IssueTokenCommand } from "../../../../packages/domain/src";
-import { createIdentityUseCases } from "../../../../packages/domain/src";
+import type { IssueTokenCommand } from "@labpics/domain";
+import { createIdentityUseCases } from "@labpics/domain";
 import { runIdentityUseCaseContract } from "../../../../packages/domain/test/identity-contract-harness";
 import { ConfigError } from "../config";
 import { createBetterAuthPort } from "./better-auth.adapter";
