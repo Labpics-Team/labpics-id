@@ -3,23 +3,6 @@ CREATE TYPE "public"."protocol_grant_type" AS ENUM('authorization_code', 'refres
 CREATE TYPE "public"."protocol_signing_key_status" AS ENUM('active', 'next', 'retiring', 'retired');--> statement-breakpoint
 CREATE TYPE "public"."protocol_subject_type" AS ENUM('public', 'pairwise');--> statement-breakpoint
 CREATE TYPE "public"."protocol_token_endpoint_auth_method" AS ENUM('none', 'client_secret_basic', 'client_secret_post', 'client_secret_jwt', 'private_key_jwt');--> statement-breakpoint
-CREATE TABLE "bootstrap_tokens" (
-	"id" text PRIMARY KEY NOT NULL,
-	"token_digest" text NOT NULL,
-	"email" text NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
-	"consumed_at" timestamp with time zone,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "bootstrap_tokens_token_digest_unique" UNIQUE("token_digest")
-);
---> statement-breakpoint
-CREATE TABLE "platform_administrators" (
-	"singleton" boolean PRIMARY KEY DEFAULT true NOT NULL,
-	"user_id" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "platform_administrators_user_id_unique" UNIQUE("user_id")
-);
---> statement-breakpoint
 CREATE TABLE "oauth_client_allowed_audiences" (
 	"client_id" text NOT NULL,
 	"audience" text NOT NULL
