@@ -85,6 +85,9 @@
   --color-hairline: var(--lab-border-hairline);
   --color-border-strong: var(--lab-border-strong);
   --color-error-text: var(--lab-sentiment-error-text);
+  /* Decorative-only ink (tokens.css law): logotype tint + pure decoration;
+   * never text — text colors come from the AA-solved label ladder above. */
+  --color-ink-faint: var(--lab-ink-faint);
 
   /* Spacing (DESIGN.md §4): the numeric multiplier scale is disabled — only
    * the eight lab steps and the touch-target size exist, named after their

@@ -49,7 +49,9 @@ function CardFooter() {
       <div className="-mx-lab-48 border-t border-hairline" aria-hidden="true" />
       <p className="mt-lab-24 flex items-center justify-center gap-lab-4 text-caption text-label-t">
         Защищено через
-        <span className="text-label-t">
+        {/* Logotype tint: the decorative-only faint ink (WCAG logotype
+         * exemption) — the sr-only text carries the accessible name. */}
+        <span className="text-ink-faint">
           <WordMark />
           <span className="sr-only">labpics id</span>
         </span>
