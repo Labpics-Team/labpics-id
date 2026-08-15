@@ -1,4 +1,9 @@
-import { PostgresIdentityAdapter, PostgresRateLimitPort, PostgresUnitOfWork } from "@labpics/db";
+import {
+  PostgresIdentityAdapter,
+  PostgresProtocolAdapter,
+  PostgresRateLimitPort,
+  PostgresUnitOfWork,
+} from "@labpics/db";
 import { createIdentityUseCases, verificationResendBudget } from "@labpics/domain";
 import { createApp } from "./app";
 import { createBetterAuthPort } from "./auth/better-auth.adapter";
@@ -6,6 +11,7 @@ import { createBootstrapControl } from "./bootstrap-control";
 import { loadConfig } from "./config";
 import { createDatabaseConnection } from "./lib/db";
 import { createLogger } from "./lib/logger";
+import { createProtocolBoundaryHandlers } from "./routes/protocol-handlers";
 
 const config = loadConfig();
 const logger = createLogger(config.logLevel);
@@ -59,12 +65,26 @@ const lifecycleUseCases =
         protocolRevocation: lifecycleAdapter,
         unitOfWork: new PostgresUnitOfWork(database.db),
       });
+
+function composeProtocolHandlers(db: NonNullable<typeof database>["db"]) {
+  const adapter = new PostgresProtocolAdapter(db);
+  return createProtocolBoundaryHandlers({
+    unitOfWork: new PostgresUnitOfWork(db),
+    clientRegistry: adapter,
+    consent: adapter,
+    signingKeys: adapter,
+    artifacts: adapter,
+  });
+}
+const protocolHandlers = database === null ? undefined : composeProtocolHandlers(database.db);
+
 const app = createApp({
   config,
   logger,
   database,
   auth,
   rateLimit,
+  protocolHandlers,
   lifecycleUseCases:
     lifecycleUseCases === undefined || composedRateLimit === undefined
       ? undefined

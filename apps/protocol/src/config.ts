@@ -24,6 +24,7 @@ const envSchema = z.object({
     .min(1024)
     .max(10 * 1024 * 1024)
     .default(1_048_576),
+  PROTOCOL_COOKIE_KEYS: z.string().optional(),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
 });
 
@@ -71,6 +72,24 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
     }
   }
 
+  let cookieKeys: readonly string[] | undefined;
+  if (value.PROTOCOL_COOKIE_KEYS !== undefined) {
+    try {
+      const raw: unknown = JSON.parse(value.PROTOCOL_COOKIE_KEYS);
+      if (!Array.isArray(raw) || raw.length === 0) throw new Error("must be a non-empty array");
+      for (const key of raw) {
+        if (typeof key !== "string" || key.length < 32) {
+          throw new Error("each cookie key must be a string of at least 32 characters");
+        }
+      }
+      cookieKeys = raw as string[];
+    } catch (error) {
+      throw new ProtocolConfigError(
+        `Invalid PROTOCOL_COOKIE_KEYS: ${error instanceof Error ? error.message : "invalid JSON"}`,
+      );
+    }
+  }
+
   // Production fail-closed gates (ch03 invariant 4): the process must refuse
   // to start on quick-start defaults rather than degrade silently.
   const production = value.NODE_ENV === "production";
@@ -84,6 +103,8 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
     throw new ProtocolConfigError("devInteractions must be disabled in production");
   if (production && boundaryCredentials === undefined)
     throw new ProtocolConfigError("Boundary credentials are required in production");
+  if (production && cookieKeys === undefined)
+    throw new ProtocolConfigError("PROTOCOL_COOKIE_KEYS are required in production");
 
   return Object.freeze({
     nodeEnv: value.NODE_ENV,
@@ -102,6 +123,7 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
     boundaryMaxRetries: value.PROTOCOL_BOUNDARY_MAX_RETRIES,
     requestTimeoutMs: value.PROTOCOL_REQUEST_TIMEOUT_MS,
     responseLimitBytes: value.PROTOCOL_RESPONSE_LIMIT_BYTES,
+    cookieKeys,
     logLevel: value.LOG_LEVEL,
   });
 }
