@@ -108,6 +108,7 @@ export function ConsentForm({ uid, details }: ConsentFormProps) {
         {/* Applicant identity */}
         <div style={{ display: "flex", alignItems: "center", gap: "var(--lab-space-16)" }}>
           {details.clientLogoUri && (
+            // biome-ignore lint/performance/noImgElement: External client logos from OIDC providers require standard img element for dynamic URLs
             <img
               src={details.clientLogoUri}
               alt=""
