@@ -8,6 +8,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./boundary-auth": {
+      "types": "./src/boundary-auth.ts",
+      "default": "./src/boundary-auth.ts"
     }
   },
   "main": "./src/index.ts",

@@ -17,6 +17,7 @@ docker compose up -d            # Postgres 17 на localhost:54310 (digest-pinne
 bun --cwd packages/db run migrate
 bun --cwd apps/api dev          # API: http://localhost:3000 (/health, /ready, /api/v1)
 bun --cwd apps/web dev          # Web: http://localhost:3001
+(cd apps/protocol && node src/index.ts)   # Protocol: http://localhost:3002 (только Node ≥22.11)
 ```
 
 Проверка каркаса:
@@ -33,7 +34,8 @@ bun run build
 
 | Путь | Назначение |
 |---|---|
-| `apps/api` | Hono на Bun: health/readiness, request-id, pino, error envelope, timeout, CORS-allowlist, `/api/v1`, Better Auth за port wrapper (`/auth`) |
+| `apps/api` | Hono на Bun: health/readiness, request-id, pino, error envelope, timeout, CORS-allowlist, `/api/v1`, Better Auth за port wrapper (`/auth`), внутренняя граница `/internal/protocol/v1` |
+| `apps/protocol` | OIDC/OAuth-провайдер на выделенном Node ≥22.11 (Bun отвергается при старте): `oidc-provider@9.11.3`, один issuer `https://id.lab.pics`, аутентифицированная граница к API |
 | `apps/web` | Next.js 16 App Router: Tailwind v4, Motion, Radix-примитивы, `src/proxy.ts` (auth-aware роутинг, без DB на edge), next/font, `server-only` доступ к данным |
 | `packages/domain` | Чистый домен: агрегаты, value objects, порты. Ноль framework/DB/HTTP-импортов (gate: `scripts/check-domain-gate`) |
 | `packages/db` | Drizzle-схема: Better Auth placeholders (`users`, `sessions`, `accounts`, `verification_tokens`), `audit_events` (hash chain), `outbox`, `organization`/`member`/`role`/`permission`, `product_access` + миграции |

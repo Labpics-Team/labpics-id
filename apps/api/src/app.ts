@@ -10,6 +10,7 @@ import { requestId } from "./middleware/request-id";
 import { requestLogger } from "./middleware/request-logger";
 import { timeout } from "./middleware/timeout";
 import { healthRoutes } from "./routes/health";
+import { internalProtocolRoutes } from "./routes/internal-protocol";
 import type { LifecycleUseCases } from "./routes/lifecycle";
 import { lifecycleRoutes } from "./routes/lifecycle";
 import { readyRoutes } from "./routes/ready";
@@ -39,6 +40,13 @@ export function createApp(deps: AppDeps) {
   app.route("/", lifecycleRoutes(rateLimit, lifecycleUseCases));
   app.route("/", readyRoutes(database, logger));
   app.route("/", v1Routes());
+  app.route(
+    "/",
+    internalProtocolRoutes({
+      logger,
+      boundaryCredentials: config.boundaryCredentials,
+    }),
+  );
 
   app.all("/auth/*", (c) => auth.fetch(c.req.raw));
 

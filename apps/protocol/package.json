@@ -1,0 +1,39 @@
+{
+  "name": "@labpics/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Labpics ID — OIDC/OAuth authorization server on dedicated Node LTS process with oidc-provider@9.11.3",
+  "engines": {
+    "node": ">=22.11.0",
+    "bun": "forbidden"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "dev": "node --watch ./src/index.ts",
+    "start": "node ./src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "node --test --experimental-strip-types \"./test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@labpics/contracts": "0.1.0",
+    "oidc-provider": "9.11.3",
+    "pino": "10.3.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@labpics/testkit": "0.1.0",
+    "@types/node": "24.13.3",
+    "@types/oidc-provider": "8.5.2",
+    "pino-pretty": "13.1.3",
+    "typescript": "5.9.3"
+  }
+}

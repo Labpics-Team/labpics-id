@@ -20,6 +20,7 @@ export interface AppConfig {
   readonly corsAllowedOrigins: readonly string[];
   readonly requestTimeoutMs: number;
   readonly logLevel: LogLevel;
+  readonly boundaryCredentials: readonly unknown[] | undefined;
 }
 
 const NODE_ENVS: readonly NodeEnv[] = ["development", "test", "production"];
@@ -121,6 +122,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (authPersistence === "postgres" && databaseUrl === undefined) {
     throw new ConfigError("DATABASE_URL is required for durable authentication persistence");
   }
+  let boundaryCredentials: readonly unknown[] | undefined;
+  const rawBoundaryCredentials = env.PROTOCOL_BOUNDARY_CREDENTIALS?.trim();
+  if (rawBoundaryCredentials !== undefined && rawBoundaryCredentials !== "") {
+    let parsedBoundary: unknown;
+    try {
+      parsedBoundary = JSON.parse(rawBoundaryCredentials);
+    } catch {
+      throw new ConfigError("PROTOCOL_BOUNDARY_CREDENTIALS must be valid JSON");
+    }
+    if (!Array.isArray(parsedBoundary) || parsedBoundary.length === 0) {
+      throw new ConfigError("PROTOCOL_BOUNDARY_CREDENTIALS must be a non-empty array");
+    }
+    boundaryCredentials = parsedBoundary;
+  }
+  if (nodeEnv === "production" && boundaryCredentials === undefined) {
+    throw new ConfigError("PROTOCOL_BOUNDARY_CREDENTIALS is required in production");
+  }
   return {
     nodeEnv,
     host: env.HOST?.trim() !== "" ? (env.HOST ?? "0.0.0.0") : "0.0.0.0",
@@ -132,5 +150,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     corsAllowedOrigins: parseCorsOrigins(env.CORS_ALLOWED_ORIGINS, nodeEnv),
     requestTimeoutMs: parsePositiveInt(env.REQUEST_TIMEOUT_MS, "REQUEST_TIMEOUT_MS", 10_000),
     logLevel: parseEnum(env.LOG_LEVEL, LOG_LEVELS, "LOG_LEVEL", "info"),
+    boundaryCredentials,
   };
 }
