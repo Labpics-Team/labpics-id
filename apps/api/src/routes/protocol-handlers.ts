@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import type { BoundaryOperation, BoundaryRequest } from "@labpics/contracts";
 import { BoundaryTransportError } from "@labpics/contracts/boundary-auth";
 import {
@@ -20,6 +21,7 @@ export interface ProtocolHandlersDeps {
   readonly consent: ConsentPort;
   readonly signingKeys: SigningKeyPort;
   readonly artifacts: ProtocolArtifactPort;
+  readonly pairwiseSecret: string;
 }
 
 export function createProtocolBoundaryHandlers(
@@ -120,6 +122,39 @@ export function createProtocolBoundaryHandlers(
         artifacts.destroyArtifact(model, req.payload.artifactId, ctx),
       );
       return null;
+    },
+
+    "subject.pairwise": async (req) => {
+      if (req.operation !== "subject.pairwise") throw new Error("Invalid operation");
+      const { subjectId, sectorIdentifier, clientId } = req.payload;
+      const sector = sectorIdentifier || clientId;
+      const hmac = createHmac("sha256", deps.pairwiseSecret);
+      hmac.update(subjectId);
+      hmac.update(sector);
+      return hmac.digest("hex");
+    },
+
+    "artifact.find_by_uid": async (req) => {
+      if (req.operation !== "artifact.find_by_uid") throw new Error("Invalid operation");
+      const model = parseArtifactModel(req.payload.model, req.correlationId);
+      return unitOfWork.run(async (ctx) =>
+        artifacts.findArtifactByUid(model, req.payload.uid, ctx),
+      );
+    },
+
+    "artifact.find_by_user_code": async (req) => {
+      if (req.operation !== "artifact.find_by_user_code") throw new Error("Invalid operation");
+      const model = parseArtifactModel(req.payload.model, req.correlationId);
+      return unitOfWork.run(async (ctx) =>
+        artifacts.findArtifactByUserCode(model, req.payload.userCode, ctx),
+      );
+    },
+
+    "artifact.revoke_by_grant_id": async (req) => {
+      if (req.operation !== "artifact.revoke_by_grant_id") throw new Error("Invalid operation");
+      return unitOfWork.run(async (ctx) =>
+        artifacts.revokeArtifactsByGrantId(req.payload.grantId, new Date(), ctx),
+      );
     },
   };
 }

@@ -31,6 +31,7 @@ describe("authentication configuration", () => {
       DATABASE_URL: "postgresql://example.invalid/labpics",
       CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
       PROTOCOL_BOUNDARY_CREDENTIALS: validBoundaryCredentials,
+      PROTOCOL_PAIRWISE_SECRET: "test-pairwise-secret-at-least-32-characters",
     });
 
     expect(config.authSecret).toBe(validSecret);
@@ -67,6 +68,7 @@ describe("authentication configuration", () => {
       DATABASE_URL: "postgresql://example.invalid/labpics",
       CORS_ALLOWED_ORIGINS: "https://id.lab.pics",
       PROTOCOL_BOUNDARY_CREDENTIALS: validBoundaryCredentials,
+      PROTOCOL_PAIRWISE_SECRET: "test-pairwise-secret-at-least-32-characters",
     });
 
     expect(config.authPersistence).toBe("postgres");

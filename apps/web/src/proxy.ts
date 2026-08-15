@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public surface.
-  if (pathname === "/" || pathname.startsWith("/auth")) {
+  if (pathname === "/" || pathname.startsWith("/auth") || pathname.startsWith("/interaction")) {
     return NextResponse.next();
   }
   // Assets and API routes pass through.
