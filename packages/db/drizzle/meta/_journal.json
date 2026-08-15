@@ -43,6 +43,13 @@
       "when": 1786577110000,
       "tag": "0005_talented_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786763603875,
+      "tag": "0006_platform_stores",
+      "breakpoints": true
     }
   ]
 }

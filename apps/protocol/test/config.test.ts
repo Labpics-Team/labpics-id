@@ -7,6 +7,7 @@ const VALID_JWKS = JSON.stringify({ keys: [{ kty: "RSA", kid: "test", n: "x", e:
 const VALID_CREDENTIALS = JSON.stringify([
   { id: "cred-1", secret: VALID_SECRET_32, operations: ["subject.get"] },
 ]);
+const VALID_COOKIE_KEYS = JSON.stringify(["cookie-key-".padEnd(40, "k")]);
 
 function productionEnv(overrides: Record<string, string> = {}): Record<string, string> {
   return {
@@ -16,6 +17,7 @@ function productionEnv(overrides: Record<string, string> = {}): Record<string, s
     PROTOCOL_JWKS: VALID_JWKS,
     PROTOCOL_DEV_INTERACTIONS: "false",
     PROTOCOL_BOUNDARY_CREDENTIALS: VALID_CREDENTIALS,
+    PROTOCOL_COOKIE_KEYS: VALID_COOKIE_KEYS,
     ...overrides,
   };
 }

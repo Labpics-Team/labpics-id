@@ -3,6 +3,7 @@ export { createDb, createDbPool } from "./client";
 export * from "./first-admin-bootstrap";
 export * from "./identity-adapter";
 export * from "./postgres-rate-limit";
+export * from "./protocol-adapter";
 export * from "./schema";
 export * from "./session-security-adapter";
 export * from "./unit-of-work";

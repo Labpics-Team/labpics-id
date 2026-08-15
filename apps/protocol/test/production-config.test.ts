@@ -11,6 +11,10 @@ const validCredential = JSON.stringify([
 ]);
 
 const validJwks = JSON.stringify({ keys: [{ kty: "RSA", kid: "k1" }] });
+const validCookieKeys = JSON.stringify([
+  "test-cookie-key-1-".padEnd(48, "x"),
+  "test-cookie-key-2-".padEnd(48, "y"),
+]);
 
 const productionEnv = {
   NODE_ENV: "production",
@@ -19,6 +23,7 @@ const productionEnv = {
   PROTOCOL_JWKS: validJwks,
   PROTOCOL_DEV_INTERACTIONS: "false",
   PROTOCOL_BOUNDARY_CREDENTIALS: validCredential,
+  PROTOCOL_COOKIE_KEYS: validCookieKeys,
 } as const;
 
 describe("Protocol production configuration gates", () => {
@@ -63,6 +68,16 @@ describe("Protocol production configuration gates", () => {
     assert.throws(
       () => loadConfig({ ...productionEnv, PROTOCOL_BOUNDARY_CREDENTIALS: "[]" }),
       /non-empty array/,
+    );
+  });
+
+  it("rejects missing or weak cookie keys in production", () => {
+    const missing: Record<string, string> = { ...productionEnv };
+    delete missing.PROTOCOL_COOKIE_KEYS;
+    assert.throws(() => loadConfig(missing), /PROTOCOL_COOKIE_KEYS/);
+    assert.throws(
+      () => loadConfig({ ...productionEnv, PROTOCOL_COOKIE_KEYS: JSON.stringify(["too-short"]) }),
+      /at least 32 characters/,
     );
   });
 
