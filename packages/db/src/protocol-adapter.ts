@@ -31,12 +31,7 @@ import {
 import type { PostgresTransactionContext } from "./unit-of-work";
 
 export class PostgresProtocolAdapter
-  implements
-    ClientRegistryPort,
-    ConsentPort,
-    SigningKeyPort,
-    ProtocolArtifactPort,
-    InteractionPort
+  implements ClientRegistryPort, ConsentPort, SigningKeyPort, ProtocolArtifactPort, InteractionPort
 {
   private readonly db: Database;
 
@@ -370,8 +365,7 @@ export class PostgresProtocolAdapter
     const artifact = await this.findArtifactByUid("Interaction", uid, ctx);
     if (artifact === null) return null;
     const p = artifact.payload;
-    const stringOrNull = (v: unknown): string | null =>
-      typeof v === "string" ? v : null;
+    const stringOrNull = (v: unknown): string | null => (typeof v === "string" ? v : null);
     const stringArray = (v: unknown): readonly string[] =>
       Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
     return {
