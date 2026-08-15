@@ -5,12 +5,26 @@ interface ConsentPageProps {
   params: Promise<{ uid: string }>;
 }
 
+interface InteractionDetailsResponse {
+  uid: string;
+  clientId: string;
+  clientName: string | null;
+  clientLogoUri: string | null;
+  requestedScopes: string[];
+  redirectUri: string;
+  nonce: string | null;
+  state: string | null;
+  subjectId: string | null;
+  sessionId: string | null;
+  existingConsent: string[] | null;
+}
+
 export default async function ConsentPage({ params }: ConsentPageProps) {
   const { uid } = await params;
 
   const protocolIssuer = process.env.PROTOCOL_ISSUER || "https://id.lab.pics";
 
-  let details: unknown;
+  let details: InteractionDetailsResponse;
   try {
     const res = await fetch(`${protocolIssuer}/interaction/${uid}`, {
       cache: "no-store",
@@ -18,7 +32,7 @@ export default async function ConsentPage({ params }: ConsentPageProps) {
     if (!res.ok) {
       redirect("/auth/login?error=interaction_not_found");
     }
-    details = await res.json();
+    details = (await res.json()) as InteractionDetailsResponse;
   } catch {
     redirect("/auth/login?error=protocol_unreachable");
   }
