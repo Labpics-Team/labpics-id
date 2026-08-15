@@ -46,6 +46,13 @@
   --lab-label-t: color-mix(in srgb, var(--lab-label-ink) 76%, var(--lab-bg-primary));
   --lab-label-q: color-mix(in srgb, var(--lab-label-ink) 32%, var(--lab-bg-primary));
 
+  /* Decorative-only ink — the exact Figma 52% strength (2.81:1 on the light
+   * card), retained where WCAG permits it: the wordmark/logotype tint
+   * (WCAG 1.4.3 logotype exemption) and purely decorative graphics.
+   * FORBIDDEN for text of any size — text uses the AA-solved P/S/T ladder
+   * above. Recomputes per theme from the ink and card bases. */
+  --lab-ink-faint: color-mix(in srgb, var(--lab-label-ink) 52%, var(--lab-bg-primary));
+
   /* ---- Color bases: Labpics Blue accent family (light) ----
    * anchor — brand #007AFF: focus ring, active nav, live/health, large text.
    * strong — contrast-solved member: filled primary action bg, accent text.

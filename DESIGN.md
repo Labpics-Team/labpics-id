@@ -64,6 +64,7 @@ The palette has exactly two kinds of values:
 | `--lab-label-s` | label ink 82% over card | `#5F5F65` | `#BDC3CE` |
 | `--lab-label-t` | label ink 76% over card | `#6B6B70` | `#B0B6C0` |
 | `--lab-label-q` (disabled) | label ink 32% over card | `#C1C1C3` | `#51555C` |
+| `--lab-ink-faint` (decorative only) | label ink 52% over card | `#9A9A9D` | `#7C818A` |
 | `--lab-border-hairline` | border ink 8% over card (light) | `#F4F4F5` | declared `#262B35` |
 | `--lab-border-strong` | border ink 16% over card (light) | `#E9E9EB` | declared `#7E8798` |
 | `--lab-sentiment-error-text` | error anchor ⊕ 28% black (light) | `#B82A23` | aliases anchor `#F87171` |
@@ -112,6 +113,7 @@ Neutral bases live near the accent hue (OKLCH H 258–268°, chroma ≤ 0.027) s
 | `--lab-label-s` | derived `#5F5F65` | derived `#BDC3CE` | Secondary text (≥5.60:1 light / ≥9.21:1 dark on every surface) |
 | `--lab-label-t` | derived `#6B6B70` | derived `#B0B6C0` | Tertiary/caption text (≥4.68:1 light / ≥8.00:1 dark on every surface) |
 | `--lab-label-q` | derived `#C1C1C3` | derived `#51555C` | Disabled (WCAG 1.4.3 inactive-UI exemption) |
+| `--lab-ink-faint` | derived `#9A9A9D` | derived `#7C818A` | **Decorative only** — wordmark tint (1.4.3 logotype exemption), decorative graphics; the exact Figma 52% strength. Never text |
 | `--lab-border-ink` | `#787880` | — (dark declares) | Border ink base — never used directly |
 | `--lab-border-hairline` | derived `#F4F4F5` | `#262B35` | Decorative separators (no AA requirement) |
 | `--lab-border-strong` | derived `#E9E9EB` | `#7E8798` | Input/control borders — **decorative** (Figma §3.4): the control boundary is the field surface + focus ring, not the border |

@@ -202,6 +202,14 @@ describe("F1 Figma baseline (docs/design/FIGMA-BASELINE.md, BL-009)", () => {
     expect(resolveToken("--lab-label-q", light)).toBe("#c1c1c3");
   });
 
+  it("keeps the exact Figma 52% strength as the decorative-only --lab-ink-faint", () => {
+    // Wordmark tint / decorative graphics only (WCAG 1.4.3 logotype
+    // exemption) — never text. The raw mock value survives here instead of
+    // in the text ladder.
+    expect(light["--lab-ink-faint"]).toContain("52%");
+    expect(resolveToken("--lab-ink-faint", light)).toBe("#9a9a9d");
+  });
+
   it("derives borders from the #787880 ink at 8/16% over the card", () => {
     expect(light["--lab-border-ink"]?.toLowerCase()).toBe("#787880");
     expect(resolveToken("--lab-border-hairline", light)).toBe("#f4f4f5");
