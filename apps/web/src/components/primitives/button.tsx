@@ -4,7 +4,9 @@ import type { ButtonHTMLAttributes } from "react";
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** When true, renders as the child element instead of a <button>. */
   asChild?: boolean;
-  variant?: "primary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost";
+  /** `control` = the Figma-baseline 48px auth control (--lab-size-control). */
+  size?: "default" | "control";
 }
 
 /*
@@ -18,24 +20,49 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * utility would not compile to anything.
  */
 const BASE_CLASSES =
-  "inline-flex min-h-touch items-center justify-center rounded-md px-lab-16 text-label transition-controls active:scale-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-disabled disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center gap-lab-8 rounded-md px-lab-16 text-input font-medium transition-controls active:scale-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed";
 
+/* Sizes: default = 44px touch minimum; control = the fixed 48px Figma
+ * auth control (--lab-size-control) used by every button on A1/A4. */
+const SIZE_CLASSES: Record<NonNullable<ButtonProps["size"]>, string> = {
+  default: "min-h-touch",
+  control: "h-control",
+};
+
+/*
+ * Figma baseline (FIGMA-BASELINE.md §1.4):
+ * - primary = accent anchor + top-light gradient + inset bottom shadow
+ *   (bg-accent-finish); hover swaps the base to the derived hover fill.
+ *   Disabled loses the finish entirely: border-ink 8% wash + label-q text
+ *   (login-default frame) — not the generic opacity dim, because the CTA is
+ *   the sole gradient carrier and a translucent gradient reads broken.
+ * - secondary = card surface with the 16%-ink control border (social,
+ *   passkeys, back). Disabled keeps the border and dims per §6.3.
+ * - ghost = quiet inline action (unchanged).
+ */
 const VARIANT_CLASSES: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "bg-accent-strong text-on-accent hover:bg-accent-hover",
-  ghost: "bg-transparent text-label-s hover:bg-surface-3",
+  primary:
+    "bg-accent-finish text-on-accent hover:bg-accent-finish-hover disabled:bg-accent-finish-disabled disabled:text-label-q",
+  secondary:
+    "border border-border-strong bg-surface text-label-p hover:bg-surface-3 disabled:opacity-disabled",
+  ghost: "bg-transparent text-label-s hover:bg-surface-3 disabled:opacity-disabled",
 };
 
 /** Radix-Slot-based button primitive, styled exclusively via DESIGN.md tokens. */
 export function Button({
   asChild = false,
   variant = "primary",
+  size = "default",
   className,
   children,
   ...props
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
   return (
-    <Comp className={`${BASE_CLASSES} ${VARIANT_CLASSES[variant]} ${className ?? ""}`} {...props}>
+    <Comp
+      className={`${BASE_CLASSES} ${SIZE_CLASSES[size]} ${VARIANT_CLASSES[variant]} ${className ?? ""}`}
+      {...props}
+    >
       {children}
     </Comp>
   );
