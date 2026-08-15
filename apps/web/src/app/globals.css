@@ -54,6 +54,7 @@
   --text-caption: var(--lab-text-caption);
   --text-caption--line-height: var(--lab-text-caption-lh);
   --text-caption--font-weight: var(--lab-text-caption-weight);
+  --text-caption--letter-spacing: var(--lab-text-caption-tracking);
   --text-mono-size: var(--lab-text-mono);
   --text-mono-size--line-height: var(--lab-text-mono-lh);
   --text-input: var(--lab-text-input);
@@ -156,30 +157,6 @@
   --blur-*: initial;
   --perspective-*: initial;
   --aspect-*: initial;
-
-  /* Auth-surface roles & metrics (FIGMA-BASELINE.md §1.7/§1.8): card title
-   * lockup, caption/meta tier, 48px control height, OTP cell, logo tile and
-   * the 36px card section gap — all read from the --lab-* sources. */
-  --text-title: var(--lab-text-title);
-  --text-title--line-height: var(--lab-text-title-lh);
-  --text-title--font-weight: var(--lab-text-title-weight);
-  --text-title--letter-spacing: var(--lab-text-title-tracking);
-  --text-caption: var(--lab-text-caption);
-  --text-caption--line-height: var(--lab-text-caption-lh);
-  --text-caption--font-weight: var(--lab-text-caption-weight);
-  --text-caption--letter-spacing: var(--lab-text-caption-tracking);
-
-  /* Body-size error text member (FIGMA-BASELINE.md §1.4 error anchor law). */
-  --color-error-text: var(--lab-sentiment-error-text);
-
-  --spacing-lab-36: var(--lab-space-36);
-  --spacing-control: var(--lab-size-control);
-  --spacing-otp-w: var(--lab-size-otp-w);
-  --spacing-otp-h: var(--lab-size-otp-h);
-  --spacing-logo-tile: var(--lab-size-logo-tile);
-
-  /* Four-layer soft auth-card stack (FIGMA-BASELINE.md §1.6). */
-  --shadow-card: var(--lab-shadow-card);
 }
 
 /*
@@ -225,10 +202,23 @@
 
 /*
  * Figma-baseline finish for filled primary actions (FIGMA-BASELINE.md §1.4):
- * the accent fill is topped with the token gradient and closed with the inset
- * bottom shadow. One utility so every filled control shares the exact finish.
+ * the fill is topped with the token gradient and closed with the inset
+ * bottom shadow. The ACTION fill is the contrast-solved STRONG member —
+ * white 16px label on the raw anchor is 4.02:1 < 4.5 AA (§3.3 post-66009db
+ * contract), so text-bearing fills must use --lab-accent-blue-strong.
  */
 @utility bg-accent-finish {
+  background-color: var(--lab-accent-blue-strong);
+  background-image: var(--lab-accent-gradient);
+  box-shadow: var(--lab-shadow-inset-control);
+}
+
+/*
+ * Brand-tile finish: the raw anchor with the same gradient+inset finish.
+ * Legal ONLY for non-text surfaces (flask icon on the logo tile — a
+ * graphical object at 4.02:1 ≥ 3:1 per WCAG 1.4.11); never under a label.
+ */
+@utility bg-tile-finish {
   background-color: var(--lab-accent-blue);
   background-image: var(--lab-accent-gradient);
   box-shadow: var(--lab-shadow-inset-control);

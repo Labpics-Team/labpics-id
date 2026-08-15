@@ -5,6 +5,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** When true, renders as the child element instead of a <button>. */
   asChild?: boolean;
   variant?: "primary" | "secondary" | "ghost";
+  /** `control` = the Figma-baseline 48px auth control (--lab-size-control). */
+  size?: "default" | "control";
 }
 
 /*
@@ -18,7 +20,14 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * utility would not compile to anything.
  */
 const BASE_CLASSES =
-  "inline-flex min-h-touch items-center justify-center gap-lab-8 rounded-md px-lab-16 text-input font-medium transition-controls active:scale-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center gap-lab-8 rounded-md px-lab-16 text-input font-medium transition-controls active:scale-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed";
+
+/* Sizes: default = 44px touch minimum; control = the fixed 48px Figma
+ * auth control (--lab-size-control) used by every button on A1/A4. */
+const SIZE_CLASSES: Record<NonNullable<ButtonProps["size"]>, string> = {
+  default: "min-h-touch",
+  control: "h-control",
+};
 
 /*
  * Figma baseline (FIGMA-BASELINE.md §1.4):
@@ -43,13 +52,17 @@ const VARIANT_CLASSES: Record<NonNullable<ButtonProps["variant"]>, string> = {
 export function Button({
   asChild = false,
   variant = "primary",
+  size = "default",
   className,
   children,
   ...props
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
   return (
-    <Comp className={`${BASE_CLASSES} ${VARIANT_CLASSES[variant]} ${className ?? ""}`} {...props}>
+    <Comp
+      className={`${BASE_CLASSES} ${SIZE_CLASSES[size]} ${VARIANT_CLASSES[variant]} ${className ?? ""}`}
+      {...props}
+    >
       {children}
     </Comp>
   );

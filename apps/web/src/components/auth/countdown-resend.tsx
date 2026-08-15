@@ -33,7 +33,10 @@ export function CountdownResend({
   }
 
   return (
-    <p className="text-center text-caption text-label-t">
+    /* Essential status/action copy — 13px small role (DESIGN.md §3.2:
+     * caption is non-essential meta only; the countdown announces state and
+     * the resend button is an interactive control, both on the 13px floor). */
+    <p className="text-center text-small text-label-t">
       <span aria-live="polite">
         {cooling ? `Отправить код повторно можно через ${secondsLeft} с` : ""}
       </span>
@@ -42,7 +45,7 @@ export function CountdownResend({
           type="button"
           onClick={handleResend}
           disabled={disabled}
-          className="inline-flex min-h-touch items-center justify-center rounded-sm px-lab-8 text-caption text-accent-text transition-controls hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-press disabled:cursor-not-allowed disabled:opacity-disabled"
+          className="inline-flex min-h-touch items-center justify-center rounded-sm px-lab-8 text-label text-accent-text transition-controls hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-press disabled:cursor-not-allowed disabled:opacity-disabled"
         >
           Отправить код повторно
         </button>

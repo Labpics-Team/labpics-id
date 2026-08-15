@@ -22,7 +22,8 @@ export interface OtpFieldProps {
  * the input's value/focus; the active cell re-expresses focus (accent border
  * + shadow-focus) because the native outline is hidden with the input.
  * Filled cells: accent border + primary-ink dot; empty: 16%-ink border +
- * 52%-ink dot; error: sentiment border on every cell + role=alert helper.
+ * disabled-tier dot (--lab-label-q, ink 32% over card); error: sentiment
+ * border on every cell + role=alert helper.
  */
 export function OtpField({ value, onChange, onComplete, disabled, error }: OtpFieldProps) {
   const id = useId();
@@ -95,8 +96,10 @@ export function OtpField({ value, onChange, onComplete, disabled, error }: OtpFi
           className="auth-overlay-input"
         />
       </div>
+      {/* Error is essential copy — 13px small role (DESIGN.md §3.2: caption
+       * is non-essential meta only; errors sit on the 13px floor). */}
       {invalid ? (
-        <p id={errorId} role="alert" className="text-center text-caption text-error-text">
+        <p id={errorId} role="alert" className="text-center text-small text-error-text">
           {error}
         </p>
       ) : null}

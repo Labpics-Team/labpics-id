@@ -25,7 +25,7 @@ export function AuthShell({
           /* Tile overlaps the card by half its 48px height (-24px stack);
            * z order from the token ladder so the tile sits above the card. */
           <div
-            className="-mb-lab-24 relative flex size-logo-tile items-center justify-center rounded-md bg-accent-finish text-on-accent"
+            className="-mb-lab-24 relative flex size-logo-tile items-center justify-center rounded-md bg-tile-finish text-on-accent"
             style={{ zIndex: "var(--lab-z-sticky)" }}
           >
             <FlaskMark />

@@ -70,7 +70,7 @@ function IdentifyStep({ onCodeSent }: { onCodeSent: (email: string) => void }) {
                 SVG assets, never inline hex in component code. `unoptimized`
                 because the image optimizer rejects SVG without
                 dangerouslyAllowSVG and a 20px logo gains nothing from it. */}
-            <Button variant="secondary" className="h-control" disabled={pending}>
+            <Button variant="secondary" size="control" disabled={pending}>
               <Image
                 src="/brand/yandex.svg"
                 alt=""
@@ -81,7 +81,7 @@ function IdentifyStep({ onCodeSent }: { onCodeSent: (email: string) => void }) {
               />
               Яндекс
             </Button>
-            <Button variant="secondary" className="h-control" disabled={pending}>
+            <Button variant="secondary" size="control" disabled={pending}>
               <Image
                 src="/brand/telegram.svg"
                 alt=""
@@ -93,7 +93,7 @@ function IdentifyStep({ onCodeSent }: { onCodeSent: (email: string) => void }) {
               Telegram
             </Button>
           </div>
-          <Button variant="secondary" className="h-control w-full" disabled={pending}>
+          <Button variant="secondary" size="control" className="w-full" disabled={pending}>
             <KeyIcon />
             Войти с Passkeys
           </Button>
@@ -129,7 +129,8 @@ function IdentifyStep({ onCodeSent }: { onCodeSent: (email: string) => void }) {
           />
           <Button
             type="submit"
-            className="h-control w-full"
+            size="control"
+            className="w-full"
             disabled={!canSubmit}
             aria-busy={pending || undefined}
           >
@@ -193,7 +194,7 @@ function OtpStep({ email, onBack }: { email: string; onBack: () => void }) {
           />
           {pending ? (
             <p
-              className="flex items-center justify-center gap-lab-8 text-caption text-label-t"
+              className="flex items-center justify-center gap-lab-8 text-small text-label-t"
               aria-live="polite"
             >
               <Spinner />
@@ -212,7 +213,8 @@ function OtpStep({ email, onBack }: { email: string; onBack: () => void }) {
 
         <Button
           variant="secondary"
-          className="h-control w-full"
+          size="control"
+          className="w-full"
           onClick={onBack}
           disabled={pending}
         >

@@ -59,8 +59,10 @@ export function TextField({ label, error, value, onFocus, onBlur, ...props }: Te
           {...props}
         />
       </div>
+      {/* Error is essential copy — 13px small role (DESIGN.md §3.2: caption
+       * is non-essential meta only; errors sit on the 13px floor). */}
       {invalid ? (
-        <p id={errorId} role="alert" className="text-caption text-error-text">
+        <p id={errorId} role="alert" className="text-small text-error-text">
           {error}
         </p>
       ) : null}
