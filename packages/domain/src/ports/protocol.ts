@@ -79,22 +79,25 @@ export interface SigningKeyPort {
   listSigningKeys(ctx?: TransactionContext): Promise<readonly ProtocolSigningKeyRecord[]>;
 }
 
-export type ProtocolArtifactModel =
-  | "Grant"
-  | "Session"
-  | "AccessToken"
-  | "AuthorizationCode"
-  | "RefreshToken"
-  | "ClientCredentials"
-  | "Client"
-  | "InitialAccessToken"
-  | "RegistrationAccessToken"
-  | "DeviceCode"
-  | "Interaction"
-  | "ReplayDetection"
-  | "BackchannelAuthenticationRequest"
-  | "PreAuthorizedCode"
-  | "PushedAuthorizationRequest";
+export const PROTOCOL_ARTIFACT_MODELS = [
+  "Grant",
+  "Session",
+  "AccessToken",
+  "AuthorizationCode",
+  "RefreshToken",
+  "ClientCredentials",
+  "Client",
+  "InitialAccessToken",
+  "RegistrationAccessToken",
+  "DeviceCode",
+  "Interaction",
+  "ReplayDetection",
+  "BackchannelAuthenticationRequest",
+  "PreAuthorizedCode",
+  "PushedAuthorizationRequest",
+] as const;
+
+export type ProtocolArtifactModel = (typeof PROTOCOL_ARTIFACT_MODELS)[number];
 
 export interface ProtocolArtifactRecord {
   readonly model: ProtocolArtifactModel;

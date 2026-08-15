@@ -1,10 +1,13 @@
 import type { BoundaryOperation, BoundaryRequest } from "@labpics/contracts";
-import type {
-  ClientRegistryPort,
-  ConsentPort,
-  ProtocolArtifactPort,
-  SigningKeyPort,
-  UnitOfWork,
+import { BoundaryTransportError } from "@labpics/contracts/boundary-auth";
+import {
+  type ClientRegistryPort,
+  type ConsentPort,
+  PROTOCOL_ARTIFACT_MODELS,
+  type ProtocolArtifactModel,
+  type ProtocolArtifactPort,
+  type SigningKeyPort,
+  type UnitOfWork,
 } from "@labpics/domain";
 
 export type BoundaryOperationHandler = (
@@ -65,17 +68,15 @@ export function createProtocolBoundaryHandlers(
 
     "artifact.get": async (req) => {
       if (req.operation !== "artifact.get") throw new Error("Invalid operation");
+      const model = parseArtifactModel(req.payload.model, req.correlationId);
       return unitOfWork.run(async (ctx) =>
-        artifacts.getArtifact(
-          req.payload.model as Parameters<typeof artifacts.getArtifact>[0],
-          req.payload.artifactId,
-          ctx,
-        ),
+        artifacts.getArtifact(model, req.payload.artifactId, ctx),
       );
     },
 
     "artifact.put": async (req) => {
       if (req.operation !== "artifact.put") throw new Error("Invalid operation");
+      const model = parseArtifactModel(req.payload.model, req.correlationId);
       // grantId/uid/userCode are oidc-provider payload fields, not separate
       // boundary parameters: lift them into indexed columns for lookups.
       const payload = req.payload.payload as Record<string, unknown>;
@@ -95,41 +96,82 @@ export function createProtocolBoundaryHandlers(
       if (uid !== undefined) options.uid = uid;
       const userCode = stringField("userCode");
       if (userCode !== undefined) options.userCode = userCode;
-      if (req.payload.expiresAt !== undefined) options.expiresAt = new Date(req.payload.expiresAt);
+      if (req.payload.expiresAt !== undefined) {
+        options.expiresAt = parseArtifactExpiry(req.payload.expiresAt, req.correlationId);
+      }
       await unitOfWork.run(async (ctx) =>
-        artifacts.putArtifact(
-          req.payload.model as Parameters<typeof artifacts.putArtifact>[0],
-          req.payload.artifactId,
-          payload,
-          options,
-          ctx,
-        ),
+        artifacts.putArtifact(model, req.payload.artifactId, payload, options, ctx),
       );
       return null;
     },
 
     "artifact.consume": async (req) => {
       if (req.operation !== "artifact.consume") throw new Error("Invalid operation");
+      const model = parseArtifactModel(req.payload.model, req.correlationId);
       return unitOfWork.run(async (ctx) =>
-        artifacts.consumeArtifact(
-          req.payload.model as Parameters<typeof artifacts.consumeArtifact>[0],
-          req.payload.artifactId,
-          new Date(),
-          ctx,
-        ),
+        artifacts.consumeArtifact(model, req.payload.artifactId, new Date(), ctx),
       );
     },
 
     "artifact.delete": async (req) => {
       if (req.operation !== "artifact.delete") throw new Error("Invalid operation");
+      const model = parseArtifactModel(req.payload.model, req.correlationId);
       await unitOfWork.run(async (ctx) =>
-        artifacts.destroyArtifact(
-          req.payload.model as Parameters<typeof artifacts.destroyArtifact>[0],
-          req.payload.artifactId,
-          ctx,
-        ),
+        artifacts.destroyArtifact(model, req.payload.artifactId, ctx),
       );
       return null;
     },
   };
+}
+
+const ARTIFACT_MODEL_SET: ReadonlySet<string> = new Set(PROTOCOL_ARTIFACT_MODELS);
+
+/** Rejects unknown artifact models before they reach Postgres as enum errors. */
+function parseArtifactModel(model: string, correlationId: string): ProtocolArtifactModel {
+  if (!ARTIFACT_MODEL_SET.has(model)) {
+    throw new BoundaryTransportError(
+      "schema_invalid",
+      `Unknown artifact model "${model}"`,
+      false,
+      correlationId,
+    );
+  }
+  return model as ProtocolArtifactModel;
+}
+
+/**
+ * The boundary contract already enforces ISO-8601-with-offset *format*
+ * (numeric epochs never reach here); this guards calendar validity, which the
+ * format regex cannot: "2026-02-30T00:00:00Z" normalizes silently in
+ * `new Date()` and "2026-99-99..." produces an Invalid Date.
+ */
+function parseArtifactExpiry(value: string, correlationId: string): Date {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || !isCalendarValid(value)) {
+    throw new BoundaryTransportError(
+      "schema_invalid",
+      "expiresAt is not a calendar-valid ISO 8601 timestamp",
+      false,
+      correlationId,
+    );
+  }
+  return date;
+}
+
+function isCalendarValid(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/.exec(value);
+  if (match === null) return false;
+  const [, year, month, day, hour, minute, second] = match.map(Number) as [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+  if (month < 1 || month > 12) return false;
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (day < 1 || day > daysInMonth) return false;
+  return hour <= 23 && minute <= 59 && second <= 59;
 }

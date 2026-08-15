@@ -1773,8 +1773,8 @@
         }
       },
       "indexes": {
-        "oauth_clients_sector_identifier_active_unique": {
-          "name": "oauth_clients_sector_identifier_active_unique",
+        "oauth_clients_sector_identifier_idx": {
+          "name": "oauth_clients_sector_identifier_idx",
           "columns": [
             {
               "expression": "sector_identifier",
@@ -1783,7 +1783,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "where": "is_active = true AND sector_identifier IS NOT NULL",
           "concurrently": false,
           "method": "btree",
@@ -2071,27 +2071,6 @@
         }
       },
       "indexes": {
-        "protocol_artifacts_pk": {
-          "name": "protocol_artifacts_pk",
-          "columns": [
-            {
-              "expression": "model",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "protocol_artifacts_grant_idx": {
           "name": "protocol_artifacts_grant_idx",
           "columns": [
@@ -2167,22 +2146,16 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "protocol_artifacts_grant_id_oauth_grants_id_fk": {
-          "name": "protocol_artifacts_grant_id_oauth_grants_id_fk",
-          "tableFrom": "protocol_artifacts",
-          "tableTo": "oauth_grants",
-          "columnsFrom": [
-            "grant_id"
-          ],
-          "columnsTo": [
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "protocol_artifacts_pk": {
+          "name": "protocol_artifacts_pk",
+          "columns": [
+            "model",
             "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          ]
         }
       },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

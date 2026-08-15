@@ -8,8 +8,6 @@ export * from "./ports/identity";
 export * from "./ports/notification";
 export * from "./ports/outbox";
 export * from "./ports/protocol";
-export * from "./ports/protocol";
-export * from "./ports/protocol";
 export * from "./ports/rate-limit";
 export * from "./ports/token";
 export * from "./ports/unit-of-work";

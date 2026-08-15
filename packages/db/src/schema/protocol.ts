@@ -6,6 +6,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -70,7 +71,9 @@ export const oauthClients = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("oauth_clients_sector_identifier_active_unique")
+    // Non-unique on purpose: OIDC pairwise sector identifiers legitimately
+    // group multiple clients under one sector (per-sector `sub` values).
+    index("oauth_clients_sector_identifier_idx")
       .on(table.sectorIdentifier)
       .where(sql`is_active = true AND sector_identifier IS NOT NULL`),
   ],
@@ -207,7 +210,11 @@ export const protocolArtifacts = pgTable(
   {
     model: protocolArtifactModelEnum("model").notNull(),
     id: text("id").notNull(),
-    grantId: text("grant_id").references(() => oauthGrants.id, { onDelete: "cascade" }),
+    // Opaque oidc-provider correlation key, intentionally NOT an FK to
+    // oauth_grants: the authoritative Grant record lives in this same table
+    // (model = 'Grant'), and no platform code writes oauth_grants yet — an FK
+    // would reject every grant-linked token insert at runtime.
+    grantId: text("grant_id"),
     payload: jsonb("payload").notNull().$type<Record<string, unknown>>().default({}),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
     consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
@@ -216,7 +223,9 @@ export const protocolArtifacts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("protocol_artifacts_pk").on(table.model, table.id),
+    // Real composite PK (not a unique index): gives the table a REPLICA
+    // IDENTITY for logical replication and makes the row identity explicit.
+    primaryKey({ name: "protocol_artifacts_pk", columns: [table.model, table.id] }),
     index("protocol_artifacts_grant_idx").on(table.grantId),
     index("protocol_artifacts_expires_idx").on(table.expiresAt),
     uniqueIndex("protocol_artifacts_uid_unique")

@@ -69,18 +69,36 @@ describe.skipIf(connectionString === undefined)("platform protocol stores", () =
       "https://app.lab.pics/cb",
     ]);
 
-    expect(
+    await expect(
       pool.query("INSERT INTO oauth_client_redirect_uris (client_id, uri) VALUES ($1, $2)", [
         clientId,
         "https://app.lab.pics/cb",
       ]),
     ).rejects.toThrow(/duplicate key/);
-    expect(
+    await expect(
       pool.query("INSERT INTO oauth_client_redirect_uris (client_id, uri) VALUES ($1, $2)", [
         clientId,
         "https://app.lab.pics/cb#fragment",
       ]),
     ).rejects.toThrow(/oauth_client_redirect_uris_no_fragment/);
+  });
+
+  it("allows multiple active clients to share one pairwise sector identifier", async () => {
+    // OIDC sector identifiers group clients: pairwise `sub` is computed per
+    // sector, so uniqueness per sector would break legitimate registrations.
+    const { pool } = adapterOf();
+    const sector = `sector-${crypto.randomUUID()}.lab.pics`;
+    for (const clientId of [`client-${crypto.randomUUID()}`, `client-${crypto.randomUUID()}`]) {
+      await pool.query(
+        "INSERT INTO oauth_clients (client_id, subject_type, sector_identifier, token_endpoint_auth_method) VALUES ($1, 'pairwise', $2, 'none')",
+        [clientId, sector],
+      );
+    }
+    const rows = await pool.query(
+      "SELECT count(*)::int AS n FROM oauth_clients WHERE sector_identifier = $1 AND is_active",
+      [sector],
+    );
+    expect(rows.rows[0]).toEqual({ n: 2 });
   });
 
   it("upserts, reads and revokes consent with a single active row per subject+client", async () => {
@@ -124,15 +142,24 @@ describe.skipIf(connectionString === undefined)("platform protocol stores", () =
     expect(await adapter.consumeArtifact("AuthorizationCode", id, now)).toBeNull();
   });
 
+  it("consumes an artifact that has no expiry (NULL expires_at means never expires)", async () => {
+    const { adapter } = adapterOf();
+    const id = `grant-${crypto.randomUUID()}`;
+    await adapter.putArtifact("Grant", id, { sub: "s1" }, {});
+    const consumed = await adapter.consumeArtifact("Grant", id, now);
+    expect(consumed?.id).toBe(id);
+    expect(consumed?.expiresAt).toBeNull();
+    // Single-use stays single-use for non-expiring artifacts too.
+    expect(await adapter.consumeArtifact("Grant", id, now)).toBeNull();
+  });
+
   it("revokes every unconsumed artifact of a grant transactionally", async () => {
-    const { adapter, pool } = adapterOf();
-    const clientId = `client-${crypto.randomUUID()}`;
-    await insertClient(clientId);
+    const { adapter } = adapterOf();
+    // grantId is an opaque oidc-provider correlation key: grant-linked
+    // artifacts must be storable with no oauth_grants row (the authoritative
+    // Grant record is itself a protocol_artifacts row with model 'Grant').
     const grantId = `grant-${crypto.randomUUID()}`;
-    await pool.query(
-      "INSERT INTO oauth_grants (id, client_id, subject_id, expires_at) VALUES ($1, $2, 's', $3)",
-      [grantId, clientId, future],
-    );
+    await adapter.putArtifact("Grant", grantId, { accountId: "s" }, { expiresAt: future });
 
     await adapter.putArtifact("AccessToken", `at-${grantId}`, {}, { grantId, expiresAt: future });
     await adapter.putArtifact("RefreshToken", `rt-${grantId}`, {}, { grantId, expiresAt: future });
@@ -205,37 +232,43 @@ describe.skipIf(connectionString === undefined)("platform protocol stores", () =
 
   it("lists active and retiring verification keys through rotation and rejects retired", async () => {
     const { adapter, pool } = adapterOf();
-    await pool.query("DELETE FROM protocol_signing_keys");
+    // The active-key uniqueness is table-global, so leftovers from earlier
+    // runs must go — but only rows this suite owns, never the whole table.
+    await pool.query("DELETE FROM protocol_signing_keys WHERE kid LIKE 'rotation-%'");
+    const runId = crypto.randomUUID().slice(0, 8);
+    const k1 = `rotation-${runId}-k1`;
+    const k2 = `rotation-${runId}-k2`;
+    const k3 = `rotation-${runId}-k3`;
     const jwk = JSON.stringify({ kty: "OKP", crv: "Ed25519", x: "A" });
     await pool.query(
-      "INSERT INTO protocol_signing_keys (kid, status, algorithm, public_key_jwk) VALUES ('k1', 'active', 'EdDSA', $1), ('k2', 'next', 'EdDSA', $1)",
-      [jwk],
+      "INSERT INTO protocol_signing_keys (kid, status, algorithm, public_key_jwk) VALUES ($1, 'active', 'EdDSA', $3), ($2, 'next', 'EdDSA', $3)",
+      [k1, k2, jwk],
     );
 
     // Exactly one active key is a database invariant, not a convention.
-    expect(
+    await expect(
       pool.query(
-        "INSERT INTO protocol_signing_keys (kid, status, algorithm, public_key_jwk) VALUES ('k3', 'active', 'EdDSA', $1)",
-        [jwk],
+        "INSERT INTO protocol_signing_keys (kid, status, algorithm, public_key_jwk) VALUES ($1, 'active', 'EdDSA', $2)",
+        [k3, jwk],
       ),
     ).rejects.toThrow(/duplicate key/);
 
     // Rotation: k1 active -> retiring, k2 next -> active. Overlap window: both verify.
-    await pool.query("UPDATE protocol_signing_keys SET status = 'retiring' WHERE kid = 'k1'");
-    await pool.query("UPDATE protocol_signing_keys SET status = 'active' WHERE kid = 'k2'");
+    await pool.query("UPDATE protocol_signing_keys SET status = 'retiring' WHERE kid = $1", [k1]);
+    await pool.query("UPDATE protocol_signing_keys SET status = 'active' WHERE kid = $1", [k2]);
     const overlap = await adapter.listSigningKeys();
     const verifying = overlap.filter((k) => k.status === "active" || k.status === "retiring");
-    expect(verifying.map((k) => k.kid).sort()).toEqual(["k1", "k2"]);
+    expect(verifying.map((k) => k.kid).sort()).toEqual([k1, k2].sort());
 
     // Retirement: k1 leaves the verification set.
     await pool.query(
-      "UPDATE protocol_signing_keys SET status = 'retired', retired_at = $1 WHERE kid = 'k1'",
-      [now],
+      "UPDATE protocol_signing_keys SET status = 'retired', retired_at = $1 WHERE kid = $2",
+      [now, k1],
     );
     const after = await adapter.listSigningKeys();
     const verifyingAfter = after.filter((k) => k.status === "active" || k.status === "retiring");
-    expect(verifyingAfter.map((k) => k.kid)).toEqual(["k2"]);
-    expect(after.find((k) => k.kid === "k1")?.status).toBe("retired");
+    expect(verifyingAfter.map((k) => k.kid)).toEqual([k2]);
+    expect(after.find((k) => k.kid === k1)?.status).toBe("retired");
   });
 
   it("stores only public JWK material and hashed client credentials", async () => {

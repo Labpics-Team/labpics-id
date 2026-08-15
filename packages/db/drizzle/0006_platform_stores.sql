@@ -74,7 +74,8 @@ CREATE TABLE "protocol_artifacts" (
 	"consumed_at" timestamp with time zone,
 	"uid" text,
 	"user_code" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "protocol_artifacts_pk" PRIMARY KEY("model","id")
 );
 --> statement-breakpoint
 CREATE TABLE "protocol_signing_keys" (
@@ -94,19 +95,18 @@ ALTER TABLE "oauth_client_post_logout_redirect_uris" ADD CONSTRAINT "oauth_clien
 ALTER TABLE "oauth_client_redirect_uris" ADD CONSTRAINT "oauth_client_redirect_uris_client_id_oauth_clients_client_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."oauth_clients"("client_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "oauth_consents" ADD CONSTRAINT "oauth_consents_client_id_oauth_clients_client_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."oauth_clients"("client_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "oauth_grants" ADD CONSTRAINT "oauth_grants_client_id_oauth_clients_client_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."oauth_clients"("client_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "protocol_artifacts" ADD CONSTRAINT "protocol_artifacts_grant_id_oauth_grants_id_fk" FOREIGN KEY ("grant_id") REFERENCES "public"."oauth_grants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "oauth_client_allowed_audiences_client_audience_unique" ON "oauth_client_allowed_audiences" USING btree ("client_id","audience");--> statement-breakpoint
 CREATE UNIQUE INDEX "oauth_client_allowed_grants_client_grant_unique" ON "oauth_client_allowed_grants" USING btree ("client_id","grant_type");--> statement-breakpoint
 CREATE UNIQUE INDEX "oauth_client_allowed_scopes_client_scope_unique" ON "oauth_client_allowed_scopes" USING btree ("client_id","scope");--> statement-breakpoint
 CREATE INDEX "oauth_client_credentials_client_idx" ON "oauth_client_credentials" USING btree ("client_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "oauth_client_post_logout_redirect_uris_client_uri_unique" ON "oauth_client_post_logout_redirect_uris" USING btree ("client_id","uri");--> statement-breakpoint
 CREATE UNIQUE INDEX "oauth_client_redirect_uris_client_uri_unique" ON "oauth_client_redirect_uris" USING btree ("client_id","uri");--> statement-breakpoint
-CREATE UNIQUE INDEX "oauth_clients_sector_identifier_active_unique" ON "oauth_clients" USING btree ("sector_identifier") WHERE is_active = true AND sector_identifier IS NOT NULL;--> statement-breakpoint
+CREATE INDEX "oauth_clients_sector_identifier_idx" ON "oauth_clients" USING btree ("sector_identifier") WHERE is_active = true AND sector_identifier IS NOT NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "oauth_consents_subject_client_active_unique" ON "oauth_consents" USING btree ("subject_id","client_id") WHERE revoked_at IS NULL;--> statement-breakpoint
 CREATE INDEX "oauth_consents_client_idx" ON "oauth_consents" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_grants_client_subject_idx" ON "oauth_grants" USING btree ("client_id","subject_id");--> statement-breakpoint
 CREATE INDEX "oauth_grants_expires_idx" ON "oauth_grants" USING btree ("expires_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "protocol_artifacts_pk" ON "protocol_artifacts" USING btree ("model","id");--> statement-breakpoint
+
 CREATE INDEX "protocol_artifacts_grant_idx" ON "protocol_artifacts" USING btree ("grant_id");--> statement-breakpoint
 CREATE INDEX "protocol_artifacts_expires_idx" ON "protocol_artifacts" USING btree ("expires_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "protocol_artifacts_uid_unique" ON "protocol_artifacts" USING btree ("model","uid") WHERE uid IS NOT NULL;--> statement-breakpoint

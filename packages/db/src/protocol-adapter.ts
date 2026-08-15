@@ -11,7 +11,7 @@ import type {
   SigningKeyPort,
   TransactionContext,
 } from "@labpics/domain";
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "./client";
 import {
   oauthClientAllowedAudiences,
@@ -122,27 +122,35 @@ export class PostgresProtocolAdapter
     now: Date,
     ctx?: TransactionContext,
   ): Promise<ProtocolConsentRecord> {
-    const db = txOrDb(ctx, this.db);
-    const id = crypto.randomUUID();
+    // Revoke-then-insert must be atomic: without a transaction the partial
+    // unique index (one active row per subject+client) races with concurrent
+    // upserts, and readers can observe a window with zero active consent.
+    const revokeAndInsert = async (db: ReturnType<typeof txOrDb>) => {
+      await db
+        .update(oauthConsents)
+        .set({ revokedAt: now })
+        .where(
+          and(
+            eq(oauthConsents.subjectId, subjectId),
+            eq(oauthConsents.clientId, clientId),
+            isNull(oauthConsents.revokedAt),
+          ),
+        );
 
-    await db
-      .update(oauthConsents)
-      .set({ revokedAt: now })
-      .where(
-        and(
-          eq(oauthConsents.subjectId, subjectId),
-          eq(oauthConsents.clientId, clientId),
-          isNull(oauthConsents.revokedAt),
-        ),
-      );
+      await db.insert(oauthConsents).values({
+        id: crypto.randomUUID(),
+        subjectId,
+        clientId,
+        scopes: [...scopes],
+        grantedAt: now,
+      });
+    };
 
-    await db.insert(oauthConsents).values({
-      id,
-      subjectId,
-      clientId,
-      scopes: [...scopes],
-      grantedAt: now,
-    });
+    if (ctx !== undefined) {
+      await revokeAndInsert(txOrDb(ctx, this.db));
+    } else {
+      await this.db.transaction((transaction) => revokeAndInsert(transaction));
+    }
 
     return {
       subjectId,
@@ -279,7 +287,9 @@ export class PostgresProtocolAdapter
           eq(protocolArtifacts.model, model),
           eq(protocolArtifacts.id, id),
           isNull(protocolArtifacts.consumedAt),
-          gt(protocolArtifacts.expiresAt, now),
+          // NULL expiry means "never expires": Grant/Session/Client-style
+          // artifacts without expiresAt must remain consumable.
+          or(isNull(protocolArtifacts.expiresAt), gt(protocolArtifacts.expiresAt, now)),
         ),
       )
       .returning();
@@ -316,13 +326,26 @@ export class PostgresProtocolAdapter
   async cleanupExpiredArtifacts(now: Date, ctx?: TransactionContext): Promise<number> {
     const db = txOrDb(ctx, this.db);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const rows = await db
-      .delete(protocolArtifacts)
-      .where(
-        sql`(${protocolArtifacts.expiresAt} IS NOT NULL AND ${protocolArtifacts.expiresAt} <= ${now}) OR (${protocolArtifacts.consumedAt} IS NOT NULL AND ${protocolArtifacts.consumedAt} <= ${sevenDaysAgo})`,
-      )
-      .returning({ id: protocolArtifacts.id });
-    return rows.length;
+    // Bounded batches: an unbounded DELETE ... RETURNING over a large backlog
+    // holds locks and buffers every deleted row; ctid batching keeps each
+    // statement small and reports the count without materializing rows.
+    const batchSize = 1000;
+    let total = 0;
+    for (;;) {
+      const result = await db.execute(sql`
+        DELETE FROM ${protocolArtifacts}
+        WHERE ctid IN (
+          SELECT ctid FROM ${protocolArtifacts}
+          WHERE (${protocolArtifacts.expiresAt} IS NOT NULL AND ${protocolArtifacts.expiresAt} <= ${now})
+             OR (${protocolArtifacts.consumedAt} IS NOT NULL AND ${protocolArtifacts.consumedAt} <= ${sevenDaysAgo})
+          LIMIT ${batchSize}
+        )
+      `);
+      const deleted = result.rowCount ?? 0;
+      total += deleted;
+      if (deleted < batchSize) break;
+    }
+    return total;
   }
 }
 

@@ -34,8 +34,6 @@ const ALLOWLIST = new Set([
   "packages/db/src/schema/organization.ts",
   "packages/db/src/schema/protocol.ts",
   "packages/db/src/protocol-adapter.ts",
-  "packages/db/src/schema/protocol.ts",
-  "packages/db/src/protocol-adapter.ts",
   "packages/db/src/unit-of-work.ts",
   "packages/testkit/src/postgres.ts",
 ]);
