@@ -27,6 +27,17 @@ import type {
   SourceIdentity,
 } from "./otp-contract";
 
+/**
+ * Digest a raw challenge id to its sha-256 hex representation.
+ * Used wherever the challenge id leaves the challenge-store boundary
+ * (audit, outbox, rate-limit keys, delivery idempotency) so that the
+ * raw opaque id never lands in a secondary store — matching the
+ * challenge store's own digest scheme (INV-09).
+ */
+function digestChallengeId(raw: string): string {
+  return new Bun.CryptoHasher("sha256").update(raw).digest("hex");
+}
+
 /** Challenge lifetime: a code is redeemable for 10 minutes after issuance. */
 export const OTP_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 /** Wrong-code budget per challenge; exhaustion blocks even the correct code. */
@@ -153,7 +164,7 @@ function buildOtpUseCases(deps: OtpContractTestDependencies): OtpUseCases {
         // later slice.
         void deps.delivery
           .send({
-            idempotencyKey: `identity.otp.requested:${issued.result.value.challengeId}`,
+            idempotencyKey: `identity.otp.requested:${digestChallengeId(issued.result.value.challengeId)}`,
             to: command.email,
             purpose: "email_otp_login",
             code: issued.code,
@@ -176,7 +187,7 @@ function buildOtpUseCases(deps: OtpContractTestDependencies): OtpUseCases {
     async redeemOtp(command) {
       const limited = await deps.rateLimit.consume({
         action: "email_otp_redeem",
-        key: command.challengeId,
+        key: digestChallengeId(command.challengeId),
         source: command.source.ip,
       });
       if (limited.kind === "limited") {
@@ -298,19 +309,20 @@ async function recordOtpEvent(
     readonly occurredAt: Date;
   },
 ): Promise<void> {
+  const challengeIdDigest = digestChallengeId(event.challengeId);
   await deps.audit?.record(context, {
     actorId: event.actorId,
     action: event.action,
     targetType: "otp_challenge",
-    targetId: event.challengeId,
+    targetId: challengeIdDigest,
     occurredAt: event.occurredAt,
     ip: event.source.ip,
     ...(event.source.userAgent !== undefined ? { userAgent: event.source.userAgent } : {}),
   });
   await deps.outbox?.enqueue(context, {
-    idempotencyKey: `${event.action}:${event.challengeId}`,
+    idempotencyKey: `${event.action}:${challengeIdDigest}`,
     type: event.action,
-    payload: { challengeId: event.challengeId },
+    payload: { challengeIdDigest },
     occurredAt: event.occurredAt,
   });
 }
