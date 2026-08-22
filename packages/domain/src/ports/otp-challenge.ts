@@ -15,7 +15,7 @@
  * never report a challenge as consumed or valid on a storage error.
  */
 import type { Email } from "../value-objects/email";
-import type { OtpChallengeId } from "../value-objects/ids";
+import type { OtpChallengeId, UserId } from "../value-objects/ids";
 import type { TransactionContext } from "./unit-of-work";
 
 /** The only OTP purpose in CH08; redeem must verify purpose binding. */
@@ -25,6 +25,13 @@ export interface OtpChallengeRecord {
   readonly id: OtpChallengeId;
   readonly email: Email;
   readonly purpose: OtpPurpose;
+  /**
+   * Account bound at creation: null when the email mapped to no active
+   * account (INV-12: a challenge row is created either way so request
+   * behavior is uniform); absent when the store does not persist binding —
+   * the use-case then falls back to its account resolution chain.
+   */
+  readonly accountId?: UserId | null;
   /** Digest of the code; the raw code is never stored (INV-09). */
   readonly codeDigest: string;
   readonly createdAt: Date;
@@ -37,6 +44,8 @@ export interface CreateOtpChallengeInput {
   readonly id: OtpChallengeId;
   readonly email: Email;
   readonly purpose: OtpPurpose;
+  /** Null when the email maps to no active account; the row is created regardless (INV-12). */
+  readonly accountId: UserId | null;
   readonly codeDigest: string;
   readonly createdAt: Date;
   readonly expiresAt: Date;
