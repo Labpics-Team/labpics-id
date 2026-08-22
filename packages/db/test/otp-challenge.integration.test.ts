@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import type { ConsumeOtpChallengeOutcome, OtpPurpose } from "@labpics/domain";
-import { Email, otpChallengeId } from "@labpics/domain";
+import { Email, otpChallengeId, userId } from "@labpics/domain";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import {
   createDb,
@@ -44,6 +44,7 @@ describe.skipIf(connectionString === undefined)("otp challenge store", () => {
         id: otpChallengeId(rawId),
         email: Email.from(email),
         purpose: PURPOSE,
+        accountId: null,
         codeDigest: await codes.digest(code),
         createdAt: NOW,
         expiresAt: EXPIRES,
@@ -72,6 +73,36 @@ describe.skipIf(connectionString === undefined)("otp challenge store", () => {
       expect(outcome.challenge.purpose).toBe(PURPOSE);
       expect(outcome.challenge.expiresAt).toEqual(EXPIRES);
       expect(outcome.challenge.remainingAttempts).toBe(5);
+      expect(outcome.challenge.accountId).toBeNull();
+    }
+  });
+
+  it("round-trips the account binding made at creation", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const boundUserId = crypto.randomUUID();
+    await pool.query("INSERT INTO users (id, name, email) VALUES ($1, 'OTP Bound', $2)", [
+      boundUserId,
+      `bound-${boundUserId}@lab.pics`,
+    ]);
+    const rawId = `challenge-${crypto.randomUUID()}`;
+    await uow().run(async (context) =>
+      store.create(context, {
+        id: otpChallengeId(rawId),
+        email: Email.from(`bound-${boundUserId}@lab.pics`),
+        purpose: PURPOSE,
+        accountId: userId(boundUserId),
+        codeDigest: await codes.digest("111111"),
+        createdAt: NOW,
+        expiresAt: EXPIRES,
+        maxAttempts: 5,
+      }),
+    );
+
+    const outcome = await consume(rawId, "111111");
+
+    expect(outcome.kind).toBe("consumed");
+    if (outcome.kind === "consumed") {
+      expect(outcome.challenge.accountId).toBe(userId(boundUserId));
     }
   });
 
@@ -195,6 +226,7 @@ describe.skipIf(connectionString === undefined)("otp challenge store", () => {
           id: otpChallengeId(rawId),
           email: Email.from("employee@lab.pics"),
           purpose: PURPOSE,
+          accountId: null,
           codeDigest: await codes.digest("111111"),
           createdAt: NOW,
           expiresAt: EXPIRES,
@@ -222,6 +254,7 @@ describe.skipIf(connectionString === undefined)("otp challenge store", () => {
         id: otpChallengeId(rawId),
         email: Email.from("employee@lab.pics"),
         purpose: PURPOSE,
+        accountId: null,
         codeDigest: await codes.digest("111111"),
         createdAt: NOW,
         expiresAt: EXPIRES,
