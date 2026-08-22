@@ -2,6 +2,7 @@ export type { Database } from "./client";
 export { createDb, createDbPool } from "./client";
 export * from "./first-admin-bootstrap";
 export * from "./identity-adapter";
+export * from "./otp-challenge-adapter";
 export * from "./postgres-rate-limit";
 export * from "./protocol-adapter";
 export * from "./schema";
