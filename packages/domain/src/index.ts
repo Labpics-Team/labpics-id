@@ -4,6 +4,7 @@ export * from "./identity/contract";
 export * from "./identity/use-cases";
 export * from "./ports/audit-log";
 export * from "./ports/clock";
+export * from "./ports/email-delivery";
 export * from "./ports/identity";
 export * from "./ports/interaction";
 export * from "./ports/notification";
