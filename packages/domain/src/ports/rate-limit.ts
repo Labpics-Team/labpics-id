@@ -4,6 +4,8 @@ export type IdentityAction =
   | "verification_resend"
   | "verification_consume"
   | "sign_in"
+  | "email_otp_request"
+  | "email_otp_redeem"
   | "password_reset"
   | "password_reset_consume"
   | "bootstrap_claim"
