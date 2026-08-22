@@ -30,7 +30,9 @@ export const otpChallenges = pgTable(
     attemptsRemaining: integer("attempts_remaining").notNull().default(5),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
-    sourceDigest: text("source_digest").notNull(),
+    // Nullable: the domain port carries no source binding yet; a later
+    // revision can populate it without a migration (same as account_id).
+    sourceDigest: text("source_digest"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
