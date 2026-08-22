@@ -1,13 +1,12 @@
 /**
  * Email-OTP use cases (CH08).
  *
- * Composition contract: `challenges`, `codes`, `sessions`, `rateLimit`,
- * `clock`, `unitOfWork` are the domain core. `accounts`, `audit`, `outbox`,
- * `delivery` are optional seams so pure in-memory harnesses can exercise the
- * challenge lifecycle alone; the production composition root MUST wire all
- * four — without `accounts` the subject id is derived deterministically from
- * the challenge email (documented at `bindAccount`), and without
- * `audit`/`outbox` the INV-20 evidence trail is absent.
+ * Composition contract: `createOtpUseCases` is the production factory and
+ * requires ALL seams — `accounts`, `audit`, `outbox`, `delivery` included —
+ * so a composition that would silently drop the INV-20 audit/outbox evidence
+ * trail or invent subject ids does not typecheck. Pure-domain contract
+ * harnesses use `createOtpUseCasesForContractTests`, where those four seams
+ * are optional (see its doc comment).
  */
 import type { AuditLogPort } from "../ports/audit-log";
 import type { ClockPort } from "../ports/clock";
@@ -35,6 +34,7 @@ export const OTP_MAX_ATTEMPTS = 5;
 /** Earliest re-request interval surfaced as public `retryAt`. */
 export const OTP_RETRY_INTERVAL_MS = 60 * 1000;
 
+/** Production dependency set: every seam required — INV-20 evidence trail by construction. */
 export interface OtpUseCaseDependencies {
   readonly challenges: OtpChallengeStore;
   readonly codes: OtpCodePort;
@@ -42,14 +42,48 @@ export interface OtpUseCaseDependencies {
   readonly rateLimit: RateLimitPort;
   readonly clock: ClockPort;
   readonly unitOfWork: UnitOfWork;
-  /** Account lookup; when absent the subject id derives from the email (see module doc). */
+  readonly accounts: Pick<IdentityRepository, "findSubjectByEmail">;
+  readonly audit: AuditLogPort;
+  readonly outbox: OutboxPort;
+  readonly delivery: EmailDeliveryPort;
+}
+
+/**
+ * Contract-harness dependency set: `accounts`/`audit`/`outbox`/`delivery`
+ * are optional so a pure in-memory harness can exercise the challenge
+ * lifecycle alone. Never a production shape.
+ */
+export interface OtpContractTestDependencies {
+  readonly challenges: OtpChallengeStore;
+  readonly codes: OtpCodePort;
+  readonly sessions: OtpSessionOwner;
+  readonly rateLimit: RateLimitPort;
+  readonly clock: ClockPort;
+  readonly unitOfWork: UnitOfWork;
+  /** Account lookup; when absent the subject id derives from the email (see `bindAccount`). */
   readonly accounts?: Pick<IdentityRepository, "findSubjectByEmail">;
   readonly audit?: AuditLogPort;
   readonly outbox?: OutboxPort;
   readonly delivery?: EmailDeliveryPort;
 }
 
+/** Production factory: all seams required, so the audit/outbox trail and the account-backed subject id cannot be lost by omission. */
 export function createOtpUseCases(deps: OtpUseCaseDependencies): OtpUseCases {
+  return buildOtpUseCases(deps);
+}
+
+/**
+ * Factory for pure-domain CONTRACT TEST harnesses ONLY: the
+ * `accounts`/`audit`/`outbox`/`delivery` seams may be omitted, and without
+ * `accounts` the subject id derives deterministically from the email. This
+ * derivation exists only here — production goes through `createOtpUseCases`,
+ * which requires the account port. MUST NEVER be imported by apps/*.
+ */
+export function createOtpUseCasesForContractTests(deps: OtpContractTestDependencies): OtpUseCases {
+  return buildOtpUseCases(deps);
+}
+
+function buildOtpUseCases(deps: OtpContractTestDependencies): OtpUseCases {
   return {
     /**
      * INV-12: unknown, deactivated, and existing accounts follow the same
@@ -211,7 +245,7 @@ export function createOtpUseCases(deps: OtpUseCaseDependencies): OtpUseCases {
  * `bindAccount` uses, so resolver-less request and redeem agree.
  */
 async function resolveActiveAccount(
-  deps: OtpUseCaseDependencies,
+  deps: OtpContractTestDependencies,
   context: TransactionContext,
   email: Email,
 ): Promise<UserId | null> {
@@ -237,7 +271,7 @@ function derivedSubjectId(email: Email): UserId {
  *    contract of resolver-less composition, not a silent fallback.
  */
 async function bindAccount(
-  deps: OtpUseCaseDependencies,
+  deps: OtpContractTestDependencies,
   context: TransactionContext,
   persisted: UserId | null | undefined,
   email: Email,
@@ -254,7 +288,7 @@ async function bindAccount(
 
 /** Audit + outbox in the SAME transaction as the challenge mutation (INV-20/14). */
 async function recordOtpEvent(
-  deps: OtpUseCaseDependencies,
+  deps: OtpContractTestDependencies,
   context: TransactionContext,
   event: {
     readonly action: "identity.otp.requested" | "identity.otp.redeemed";

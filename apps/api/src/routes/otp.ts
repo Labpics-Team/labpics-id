@@ -68,12 +68,14 @@ export function otpRoutes(deps: OtpRouteDeps) {
     if (result.kind === "session_established") {
       // TODO(AUTH-01): session cookie issuance via the session owner lands
       // with the AUTH-01 activation slice; until then the response carries
-      // the subject envelope only and MUST NOT set cookies.
+      // the subject DTO only and MUST NOT set cookies.
+      //
+      // Wire DTO is deliberately decoupled from the internal
+      // EmployeeSubjectEnvelopeV1 (Hyrum): `schema_version`/`kind` stay
+      // internal so envelope evolution (V2/CH05) is not a public API break.
       return c.json(
         {
           subject: {
-            schema_version: result.value.subject.schema_version,
-            kind: result.value.subject.kind,
             accountId: result.value.subject.accountId,
             email: result.value.subject.email.value,
           },

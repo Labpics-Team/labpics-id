@@ -133,17 +133,17 @@ describe("POST /v1/auth/otp/request", () => {
 });
 
 describe("POST /v1/auth/otp/redeem", () => {
-  it("returns 200 with the schema_version 1 employee subject envelope", async () => {
+  it("returns 200 with the wire subject DTO, without internal envelope fields", async () => {
     const app = appWith({ redeemOtp: async () => sessionResult() });
     const res = await postJson(app, "/v1/auth/otp/redeem", {
       challengeId: "challenge-1",
       code: "100001",
     });
     expect(res.status).toBe(200);
+    // Wire DTO deliberately excludes schema_version/kind (Hyrum): the
+    // internal envelope must be able to evolve without a public API break.
     expect(await res.json()).toEqual({
       subject: {
-        schema_version: 1,
-        kind: "employee",
         accountId: "account-1",
         email: "employee@labpics.dev",
       },

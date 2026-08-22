@@ -20,7 +20,7 @@ import type {
   SourceIdentity,
   TransactionContext,
 } from "../src";
-import { createOtpUseCases, Email } from "../src";
+import { createOtpUseCasesForContractTests, Email } from "../src";
 
 const SOURCE: SourceIdentity = { ip: "203.0.113.10" };
 
@@ -252,7 +252,7 @@ function createOtpHarness() {
     },
   };
 
-  const useCases = createOtpUseCases({
+  const useCases = createOtpUseCasesForContractTests({
     challenges: store,
     codes,
     sessions: sessionOwner,
