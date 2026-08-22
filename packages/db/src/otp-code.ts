@@ -26,6 +26,15 @@ export class RandomOtpCodePort implements OtpCodePort {
   digest(code: string): Promise<string> {
     return Promise.resolve(new Bun.CryptoHasher("sha256").update(code).digest("hex"));
   }
+
+  /**
+   * Digest a raw challenge id to sha256 hex. Deterministic and matches the
+   * digest used by PostgresOtpChallengeStore so audit/outbox/rate-limit keys
+   * carry the same opaque identifier the store persists (INV-09).
+   */
+  digestChallengeId(raw: string): Promise<string> {
+    return Promise.resolve(new Bun.CryptoHasher("sha256").update(raw).digest("hex"));
+  }
 }
 
 function randomCode(): string {
@@ -41,3 +50,5 @@ function randomCode(): string {
     }
   }
 }
+
+</ARG>

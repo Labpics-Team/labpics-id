@@ -82,4 +82,13 @@ export interface OtpChallengeStore {
 export interface OtpCodePort {
   generate(): Promise<{ readonly code: string; readonly digest: string }>;
   digest(code: string): Promise<string>;
+  /**
+   * Digest a raw challenge id to its opaque representation. Used wherever the
+   * challenge id leaves the challenge-store boundary (audit, outbox,
+   * rate-limit keys, delivery idempotency) so that the raw opaque id never
+   * lands in a secondary store — matching the challenge store's own digest
+   * scheme (INV-09). Implementation MUST be deterministic and match the
+   * digest used by the paired OtpChallengeStore.
+   */
+  digestChallengeId(raw: string): Promise<string>;
 }

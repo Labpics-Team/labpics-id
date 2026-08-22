@@ -273,6 +273,46 @@ describe.skipIf(connectionString === undefined)("otp challenge store", () => {
   });
 });
 
+  it("never persists raw challenge id in audit_events or outbox (Finding 1 regression)", async () => {
+    if (pool === null) throw new Error("TEST_DATABASE_URL is required");
+    const rawId = `challenge-${crypto.randomUUID()}`;
+    const digestOfRaw = new Bun.CryptoHasher("sha256").update(rawId).digest("hex");
+
+    await uow().run(async (context) => {
+      await store.create(context, {
+        id: otpChallengeId(rawId),
+        email: Email.from("employee@lab.pics"),
+        purpose: PURPOSE,
+        accountId: null,
+        codeDigest: await codes.digest("111111"),
+        createdAt: NOW,
+        expiresAt: EXPIRES,
+        maxAttempts: 5,
+      });
+      await context.transaction.insert(outbox).values({
+        type: "identity.otp.requested",
+        payload: {
+          idempotencyKey: `identity.otp.requested:${digestOfRaw}`,
+          challengeIdDigest: digestOfRaw,
+        },
+      });
+    });
+
+    const outboxRows = await pool.query("SELECT * FROM outbox");
+    for (const row of outboxRows.rows as Record<string, unknown>[]) {
+      for (const [col, val] of Object.entries(row)) {
+        expect(`=${String(val)}`).not.toContain(rawId);
+      }
+    }
+    const payloadCheck = await pool.query(
+      "SELECT payload FROM outbox WHERE type = 'identity.otp.requested'",
+    );
+    expect(payloadCheck.rowCount).toBe(1);
+    const payload = (payloadCheck.rows[0] as { payload: Record<string, unknown> }).payload;
+    expect(payload.challengeIdDigest).toBe(digestOfRaw);
+  });
+});
+
 describe("otp code port", () => {
   it("generates 6-digit codes with a matching digest", async () => {
     const port = new RandomOtpCodePort();

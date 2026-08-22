@@ -27,17 +27,6 @@ import type {
   SourceIdentity,
 } from "./otp-contract";
 
-/**
- * Digest a raw challenge id to its sha-256 hex representation.
- * Used wherever the challenge id leaves the challenge-store boundary
- * (audit, outbox, rate-limit keys, delivery idempotency) so that the
- * raw opaque id never lands in a secondary store — matching the
- * challenge store's own digest scheme (INV-09).
- */
-function digestChallengeId(raw: string): string {
-  return new Bun.CryptoHasher("sha256").update(raw).digest("hex");
-}
-
 /** Challenge lifetime: a code is redeemable for 10 minutes after issuance. */
 export const OTP_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 /** Wrong-code budget per challenge; exhaustion blocks even the correct code. */
@@ -162,9 +151,10 @@ function buildOtpUseCases(deps: OtpContractTestDependencies): OtpUseCases {
         // alter the public result or its timing (INV-12). The durable trace
         // is the in-transaction outbox event; delivery-result tracking is a
         // later slice.
+        const deliveryIdempotencyKey = `identity.otp.requested:${await deps.codes.digestChallengeId(issued.result.value.challengeId)}`;
         void deps.delivery
           .send({
-            idempotencyKey: `identity.otp.requested:${digestChallengeId(issued.result.value.challengeId)}`,
+            idempotencyKey: deliveryIdempotencyKey,
             to: command.email,
             purpose: "email_otp_login",
             code: issued.code,
@@ -185,9 +175,10 @@ function buildOtpUseCases(deps: OtpContractTestDependencies): OtpUseCases {
      * storage errors reject, never grant.
      */
     async redeemOtp(command) {
+      const rateLimitKey = await deps.codes.digestChallengeId(command.challengeId);
       const limited = await deps.rateLimit.consume({
         action: "email_otp_redeem",
-        key: digestChallengeId(command.challengeId),
+        key: rateLimitKey,
         source: command.source.ip,
       });
       if (limited.kind === "limited") {
@@ -220,7 +211,9 @@ function buildOtpUseCases(deps: OtpContractTestDependencies): OtpUseCases {
                 accountId,
                 email: outcome.challenge.email,
               };
-              const session = await deps.sessions.create(subject, now);
+              // Session creation is LAST inside the transaction: audit/outbox
+              // evidence must persist before any side effect that could succeed
+              // while the transaction rolls back (INV-20 ordering invariant).
               await recordOtpEvent(deps, context, {
                 action: "identity.otp.redeemed",
                 actorId: accountId,
@@ -228,6 +221,7 @@ function buildOtpUseCases(deps: OtpContractTestDependencies): OtpUseCases {
                 source: command.source,
                 occurredAt: now,
               });
+              const session = await deps.sessions.create(subject, now);
               return { kind: "session_established", value: { session, subject } };
             }
             case "invalid_code":
@@ -309,7 +303,7 @@ async function recordOtpEvent(
     readonly occurredAt: Date;
   },
 ): Promise<void> {
-  const challengeIdDigest = digestChallengeId(event.challengeId);
+  const challengeIdDigest = await deps.codes.digestChallengeId(event.challengeId);
   await deps.audit?.record(context, {
     actorId: event.actorId,
     action: event.action,

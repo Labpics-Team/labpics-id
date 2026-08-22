@@ -224,6 +224,9 @@ function createOtpHarness() {
     async digest(code: string) {
       return `digest:${code}`;
     },
+    async digestChallengeId(raw: string) {
+      return `challenge-digest:${raw}`;
+    },
   };
 
   const sessionOwner: OtpSessionOwner = {
