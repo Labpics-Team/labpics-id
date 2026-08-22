@@ -11,6 +11,7 @@ out/
 
 # ── test coverage ──────────────────────────────────────────────
 coverage/
+bun-test-report.xml
 
 # ── environment / secrets (never commit real values) ───────────
 .env

@@ -1,0 +1,1 @@
+ALTER TABLE "otp_challenges" ALTER COLUMN "source_digest" DROP NOT NULL;

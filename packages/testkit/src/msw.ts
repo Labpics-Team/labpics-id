@@ -1,5 +1,10 @@
 import { HttpResponse, http } from "msw";
 
+// msw is a dependency of the testkit only; consumer test files import these
+// re-exports instead of depending on msw directly.
+export { delay, HttpResponse, http } from "msw";
+export { setupServer } from "msw/node";
+
 /**
  * MSW handler scaffold for API contract tests. Add a handler per endpoint as
  * endpoints land in later chapters; test files use setupServer from "msw/node".

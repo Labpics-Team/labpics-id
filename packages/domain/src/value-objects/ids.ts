@@ -9,6 +9,8 @@ export type ActorId = Branded<string, "ActorId">;
 export type UserId = Branded<string, "UserId">;
 export type OrganizationId = Branded<string, "OrganizationId">;
 export type ProductAccessId = Branded<string, "ProductAccessId">;
+/** Opaque high-entropy challenge handle, generated server-side; never derived from user input. */
+export type OtpChallengeId = Branded<string, "OtpChallengeId">;
 
 function branded<T extends string, B extends string>(value: string, brandName: B): Branded<T, B> {
   if (value.length === 0) {
@@ -31,4 +33,8 @@ export function organizationId(value: string): OrganizationId {
 
 export function productAccessId(value: string): ProductAccessId {
   return branded(value, "ProductAccessId");
+}
+
+export function otpChallengeId(value: string): OtpChallengeId {
+  return branded(value, "OtpChallengeId");
 }
