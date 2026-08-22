@@ -6,7 +6,7 @@ import type {
   OtpChallengeStore,
   TransactionContext,
 } from "@labpics/domain";
-import { Email } from "@labpics/domain";
+import { Email, userId } from "@labpics/domain";
 import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { otpChallenges } from "./schema";
 import type { PostgresTransactionContext } from "./unit-of-work";
@@ -17,10 +17,10 @@ import type { PostgresTransactionContext } from "./unit-of-work";
  * - The raw opaque challenge id is digested (sha256) before touching storage;
  *   only the digest is persisted, and the consumed record echoes the caller's
  *   raw id back — the row can never reveal it (INV-09).
- * - account_id stays in the schema as a nullable column but this store always
- *   writes NULL: the domain port carries no account binding, and account
- *   resolution at redeem time is the use-case's job. The column is kept so a
- *   later revision can bind without a migration.
+ * - account_id persists the binding made at creation: null when the email
+ *   mapped to no active account (INV-12: the row is created either way so
+ *   request behavior is uniform). Consume returns it so the use-case can
+ *   establish the session without a second lookup.
  * - INV-11: the winning path is ONE atomic UPDATE whose predicate carries every
  *   winning condition (id digest, purpose, not consumed, not expired, digest
  *   match, attempts left). Exactly one concurrent statement can match the row.
@@ -38,7 +38,7 @@ export class PostgresOtpChallengeStore implements OtpChallengeStore {
         challengeIdDigest: digestChallengeId(input.id),
         purpose: input.purpose,
         email: input.email.value,
-        accountId: null,
+        accountId: input.accountId,
         codeVerifier: input.codeDigest,
         attemptsRemaining: input.maxAttempts,
         expiresAt: input.expiresAt,
@@ -49,6 +49,7 @@ export class PostgresOtpChallengeStore implements OtpChallengeStore {
       id: input.id,
       email: input.email,
       purpose: input.purpose,
+      accountId: input.accountId,
       codeDigest: input.codeDigest,
       createdAt: input.createdAt,
       expiresAt: input.expiresAt,
@@ -78,6 +79,7 @@ export class PostgresOtpChallengeStore implements OtpChallengeStore {
       )
       .returning({
         email: otpChallenges.email,
+        accountId: otpChallenges.accountId,
         codeVerifier: otpChallenges.codeVerifier,
         createdAt: otpChallenges.createdAt,
         expiresAt: otpChallenges.expiresAt,
@@ -91,6 +93,7 @@ export class PostgresOtpChallengeStore implements OtpChallengeStore {
           id: input.id,
           email: Email.from(won.email),
           purpose: input.purpose,
+          accountId: won.accountId === null ? null : userId(won.accountId),
           codeDigest: won.codeVerifier,
           createdAt: won.createdAt,
           expiresAt: won.expiresAt,
