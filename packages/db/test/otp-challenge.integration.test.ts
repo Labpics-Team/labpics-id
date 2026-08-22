@@ -271,7 +271,6 @@ describe.skipIf(connectionString === undefined)("otp challenge store", () => {
     expect(challenges?.rowCount).toBe(1);
     expect(events?.rowCount).toBe(1);
   });
-});
 
   it("never persists raw challenge id in audit_events or outbox (Finding 1 regression)", async () => {
     if (pool === null) throw new Error("TEST_DATABASE_URL is required");
@@ -300,8 +299,8 @@ describe.skipIf(connectionString === undefined)("otp challenge store", () => {
 
     const outboxRows = await pool.query("SELECT * FROM outbox");
     for (const row of outboxRows.rows as Record<string, unknown>[]) {
-      for (const [col, val] of Object.entries(row)) {
-        expect(`=${String(val)}`).not.toContain(rawId);
+      for (const value of Object.values(row)) {
+        expect(`=${String(value)}`).not.toContain(rawId);
       }
     }
     const payloadCheck = await pool.query(

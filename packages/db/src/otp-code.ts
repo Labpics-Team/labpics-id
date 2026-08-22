@@ -50,5 +50,3 @@ function randomCode(): string {
     }
   }
 }
-
-</ARG>
